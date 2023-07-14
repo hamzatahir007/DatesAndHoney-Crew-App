@@ -17,83 +17,102 @@ import Send from '../../../../assets/send.svg'
 import SVGImg1 from '../../../../assets/arrowleft.svg';
 import Share from 'react-native-share';
 import firestore from '@react-native-firebase/firestore';
-
+import moment from 'moment';
 import { useState } from 'react';
 import { TextInput } from 'react-native-paper';
 import { useSelector } from 'react-redux';
 import { selectMediatorUser } from '../../../../../redux/reducers/Reducers';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { useEffect } from 'react';
+import { SocialMediaData } from './HomeScreen';
 
 const { width, height } = Dimensions.get("window");
 
-const CustomeEfilatedCode = ({ navigation }) => {
+const CustomeEfilatedCode = ({ navigation, route }) => {
+    const { allUser } = route?.params;
     const [emailAddress, setEmailAddress] = useState(null);
     const [customeCode, setCustomeCode] = useState(null);
     const [customeCodeEdit, setCustomeCodeEdit] = useState(false);
-    const [allUser, setAllUser] = useState(null);
+    // const [allUser, setAllUser] = useState(null);
     const [loading, setLoading] = useState(false);
     const mediator = useSelector(selectMediatorUser);
+    // console.log(allUser);
+    // useEffect(() => {
+    //     fetchUser();
+    // }, [])
 
-    useEffect(() => {
-        fetchUser();
-    }, [])
-
-    const fetchUser = async () => {
-        await firestore()
-            .collection('Users')
-            .onSnapshot(querySnapshot => {
-                const users = [];
-                querySnapshot.forEach((documentSnapshot) => {
-                    const data = documentSnapshot.data().userDetails;
-                    users.push(data);
-                })
-                setAllUser(users)
-            })
-    }
+    // const fetchUser = async () => {
+    //     await firestore()
+    //         .collection('Users')
+    //         .onSnapshot(querySnapshot => {
+    //             const users = [];
+    //             querySnapshot.forEach((documentSnapshot) => {
+    //                 const data = documentSnapshot.data().userDetails;
+    //                 users.push(data);
+    //             })
+    //             // export users
+    //             setAllUser(users)
+    //         })
+    // }
 
     const AutoGenCode = () => {
-        setCustomeCode(Math.random().toString(16).slice(2))
+        const uniqueCode = generateUniqueCode(mediator?.userDetails?.Name);
+        setCustomeCode(uniqueCode)
+    }
+    function generateUniqueCode(influencerName) {
+        const timestamp = Date.now().toString(36).substring(2, 5); // Generate a timestamp-based string
+        const randomChars = Math.random().toString(36).substring(2, 3); // Generate a random string
+        const code = influencerName.substring(0, 3).toUpperCase() + timestamp + randomChars; // Combine influencer initials, timestamp, and random string
+        return code;
     }
 
+
     const SaveChanges = async () => {
-        if (customeCode) {
-            if (!allUser.length == 0) {
-                allUser.map((item) => {
-                    // console.log(item.RefCode);
-                    if (item.RefCode == customeCode) {
-                        ToastAndroid.show("The given referel code is already in used please try anther one!", ToastAndroid.SHORT);
-                    }
-                    else {
-                        setLoading(true)
-                        firestore()
-                            .collection('Users').doc(mediator?.userDetails?.uid).update({
-                                'userDetails.RefCode': customeCode
-                            })
-                            .then(() => {
-                                ToastAndroid.show(`Your referel code updated successfully`, ToastAndroid.SHORT);
-                                setLoading(false)
-                            });
-                    }
-                })
+        const userDate = new Date(mediator?.userDetails?.VipCodeDate).toDateString();
+        const twoMonthsAgo = new Date(moment().subtract(2, 'months')).toDateString();
+        // console.log(twoMonthsAgo , userDate , twoMonthsAgo >= userDate);
+        if (twoMonthsAgo >= userDate) {
+            if (customeCode) {
+                if (!allUser.length == 0) {
+                    allUser.map((item) => {
+                        if (item.VipCode == customeCode) {
+                            ToastAndroid.show("The given referel code is already in used please try anther one!", ToastAndroid.SHORT);
+                        }
+                        else {
+                            setLoading(true)
+                            firestore()
+                                .collection('Users').doc(mediator?.userDetails?.uid).update({
+                                    'userDetails.VipCode': customeCode,
+                                    'userDetails.VipCodeDate': new Date().toString(),
+                                })
+                                .then(() => {
+                                    ToastAndroid.show(`Your referel code updated successfully`, ToastAndroid.SHORT);
+                                    setLoading(false)
+                                });
+                        }
+                    })
+                }
+                else {
+                    ToastAndroid.show("Network error please try again later!", ToastAndroid.SHORT);
+                }
             }
             else {
-                ToastAndroid.show("Network error please try again later!", ToastAndroid.SHORT);
+                ToastAndroid.show("Referel code cannot be empty!", ToastAndroid.SHORT);
             }
         }
         else {
-            ToastAndroid.show("Referel code cannot be empty!", ToastAndroid.SHORT);
+            ToastAndroid.show("Your affiliate code cannot be changed for 2 months.", ToastAndroid.SHORT);
         }
+        // return
     }
-
 
     const SendToAll = async (autoCode) => {
         // console.log(autoCode);
         // return
         const shareOptions = {
-            title: 'Share via',
+            title: 'Referal Code: ',
             // title: 'Promo Code: ' + autoCode,
-            message: 'Referal Code: ' + autoCode,  //string
+            message: 'Download: ' + 'DatesAndHoneyApp from AppStore, ' + 'Referal Code: ' + autoCode,  //string
         };
 
         // return
@@ -276,6 +295,29 @@ const CustomeEfilatedCode = ({ navigation }) => {
         }
     }
 
+
+    const OnSendEmail = () => {
+        const EMAIL_REGEX = /@[a-zA-Z0-9]+\.[A-Za-z]+$/;
+        // console.log(emailAddress);
+        if (emailAddress == '' || !emailAddress === EMAIL_REGEX.test(emailAddress)) {
+            // const email = 'example@example.com';
+            if (emailAddress == '') {
+                ToastAndroid.show('Email address cannot be empty', ToastAndroid.SHORT)
+            }
+            else if (!emailAddress === EMAIL_REGEX.test(emailAddress)) {
+                ToastAndroid.show('That email address is invalid!', ToastAndroid.SHORT)
+            }
+        }
+        else {
+            const subject = 'Referal Code';
+            const body = mediator?.userDetails?.VipCode;
+            const mailtoUrl = `mailto:${emailAddress}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+            Linking.openURL(mailtoUrl)
+                .catch((err) => console.error('An error occurred', err));
+        }
+    }
+
     return (
         <View style={{
             flex: 1,
@@ -289,7 +331,8 @@ const CustomeEfilatedCode = ({ navigation }) => {
                     <View style={{
                         flexDirection: 'row',
                         paddingHorizontal: 20,
-                        paddingVertical: 20,
+                        // paddingVertical: 20,
+                        height: 60,
                         alignItems: 'center'
                     }}>
                         <TouchableOpacity
@@ -300,7 +343,7 @@ const CustomeEfilatedCode = ({ navigation }) => {
                             <SVGImg1 width={20} height={20} />
                         </TouchableOpacity>
                         <View style={{
-                            flex: 2,
+                            flex: 6,
                         }}>
                             <Text style={{ textAlign: 'center', color: COLORS.black, fontSize: 16, fontWeight: 'bold' }}>Learn more about
                                 referral program</Text>
@@ -352,7 +395,10 @@ const CustomeEfilatedCode = ({ navigation }) => {
                                 fontSize: 13,
                                 color: COLORS.gray
                             }}>
-                                <Text style={{ color: COLORS.black }}>Onboard talent/modeling agencies
+                                <Text style={{
+                                    color: COLORS.black,
+                                    fontSize: 12,
+                                }}>Onboard talent/modeling agencies
                                     and earn 2.5%</Text>
                             </View>
                         </View>
@@ -376,7 +422,10 @@ const CustomeEfilatedCode = ({ navigation }) => {
                                 fontSize: 13,
                                 color: COLORS.gray
                             }}>
-                                <Text style={{ color: COLORS.black }}>Talent agencies will earn 5% of
+                                <Text style={{
+                                    color: COLORS.black,
+                                    fontSize: 12,
+                                }}>Talent agencies will earn 5% of
                                     subscription</Text>
                             </View>
                         </View>
@@ -400,7 +449,10 @@ const CustomeEfilatedCode = ({ navigation }) => {
                                 fontSize: 13,
                                 color: COLORS.gray
                             }}>
-                                <Text style={{ color: COLORS.black }}>Influnacers/ models will earn 10%
+                                <Text style={{
+                                    color: COLORS.black,
+                                    fontSize: 12,
+                                }}>Influnacers/ models will earn 10%
                                     of subscription</Text>
                             </View>
                         </View>
@@ -421,10 +473,12 @@ const CustomeEfilatedCode = ({ navigation }) => {
                             <View style={{
                                 width: '90%',
                                 paddingLeft: 5,
-                                fontSize: 13,
                                 color: COLORS.gray
                             }}>
-                                <Text style={{ color: COLORS.black }}>You will earn most money when you sign up talent/ modeling Agancy’s that have the most influencers</Text>
+                                <Text style={{
+                                    color: COLORS.black,
+                                    fontSize: 12,
+                                }}>You will earn more money when you sign up talent/ modeling Agancy’s that have the most influencers</Text>
                             </View>
                         </View>
                     </View>
@@ -461,7 +515,8 @@ const CustomeEfilatedCode = ({ navigation }) => {
                                     width: width / 1.5,
                                     padding: 0,
                                     margin: 0,
-                                    backgroundColor: COLORS.transparent
+                                    backgroundColor: COLORS.transparent,
+                                    opacity: customeCodeEdit ? 1 : 0.1
                                 }}
                             />
                         </View>
@@ -498,7 +553,7 @@ const CustomeEfilatedCode = ({ navigation }) => {
                             :
                             <CustomeButton title={'Save'} width={width / 2.3} border={COLORS.gray} bcolor={COLORS.transparent} onpress={() => SaveChanges()} />
                         }
-                        <CustomeButton title={'Autogenerate'} width={width / 2.3} onpress={() => AutoGenCode()} />
+                        <CustomeButton title={'Auto generate'} width={width / 2.3} onpress={() => AutoGenCode()} />
                     </View>
 
                     <View style={{
@@ -526,7 +581,7 @@ const CustomeEfilatedCode = ({ navigation }) => {
                         elevation: 5,
                         alignItems: 'center',
                         paddingRight: 20,
-                        height:50,
+                        height: 50,
                         paddingVertical: 5,
                     }}>
                         <View style={{
@@ -549,14 +604,57 @@ const CustomeEfilatedCode = ({ navigation }) => {
                                 }}
                             />
                         </View>
-                        <TouchableOpacity style={{
-                            color: COLORS.black,
-                            fontSize: 13
-                        }}>
+                        <TouchableOpacity
+                            onPress={() => OnSendEmail()}
+                            style={{
+                                color: COLORS.black,
+                                fontSize: 13
+                            }}>
                             <Send width={25} height={25} />
                         </TouchableOpacity>
                     </View>
-                    <View style={{
+
+                    {SocialMediaData &&
+                        <View style={{
+                            marginTop: 30,
+                            width: '100%',
+                            flexDirection: 'row',
+                            flexWrap: 'wrap',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            paddingVertical: 5,
+                            paddingHorizontal: 20
+                        }}>
+                            {SocialMediaData.map((item, index) => (
+                                <TouchableOpacity
+                                    key={index}
+                                    onPress={() => SendToSocial(mediator?.userDetails?.VipCode, item?.id)}
+                                    style={{
+                                        width: '48%',
+                                        marginBottom: 10,
+                                        elevation: 5,
+                                        backgroundColor: COLORS.white,
+                                        borderRadius: 10,
+                                        paddingVertical: 15,
+                                        paddingHorizontal: 20,
+                                        alignItems: 'center'
+                                    }}>
+                                    <View style={{
+                                        flexDirection: 'row',
+                                        alignItems: 'center'
+                                    }}>
+                                        {item.image}
+                                        <Text style={{
+                                            paddingLeft: 5,
+                                            fontSize: 12,
+                                            color: COLORS.black
+                                        }}>{item.name}</Text>
+                                    </View>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    }
+                    {/* <View style={{
                         flexDirection: 'row',
                         paddingVertical: 10,
                         paddingHorizontal: 20,
@@ -581,9 +679,9 @@ const CustomeEfilatedCode = ({ navigation }) => {
                                 Log in
                             </Text>
                         </TouchableOpacity>
-                    </View>
+                    </View> */}
 
-                    <View style={{
+                    {/* <View style={{
                         alignSelf: 'center',
                         width: width / 1.1,
                         flexDirection: 'row',
@@ -761,10 +859,10 @@ const CustomeEfilatedCode = ({ navigation }) => {
                                 }}>Linked in </Text>
                             </View>
                         </TouchableOpacity>
-                    </View>
+                    </View> */}
 
 
-                    <View
+                    {/* <View
                         style={{
                             alignSelf: 'center',
                             marginTop: 10,
@@ -824,12 +922,12 @@ const CustomeEfilatedCode = ({ navigation }) => {
                                 }}>Copy Link</Text>
                             </View>
                         </TouchableOpacity>
-                    </View>
+                    </View> */}
                     <View style={{
                         paddingVertical: 20,
                         alignSelf: 'center'
                     }}>
-                        <CustomeButton title={'Send to all'} width={width / 1.1} onpress={() => SendToAll(mediator?.userDetails?.RefCode)} />
+                        <CustomeButton title={'Send to all'} width={width / 1.1} onpress={() => SendToAll(mediator?.userDetails?.VipCode)} />
                     </View>
                 </View>
             </ScrollView>

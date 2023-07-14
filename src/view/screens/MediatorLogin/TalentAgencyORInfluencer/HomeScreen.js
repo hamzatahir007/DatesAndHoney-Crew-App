@@ -1015,7 +1015,7 @@ const HomeScreen = ({ navigation }) => {
             <View style={{
               paddingVertical: 20
             }}>
-              <CustomeButton title={'Send to all'} onpress={() => SendToAll(mediator?.userDetails?.RefCode)} width={width / 1.1} />
+              <CustomeButton title={'Send to all'} onpress={() => SendToAll(mediator?.userDetails?.VipCode)} width={width / 1.1} />
             </View>
 
 

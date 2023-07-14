@@ -1,4 +1,4 @@
-import { ActivityIndicator, Alert, Dimensions, Image, PermissionsAndroid, Platform, SafeAreaView, ScrollView, StyleSheet, Switch, Text, ToastAndroid, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Linking, Image, PermissionsAndroid, Platform, SafeAreaView, ScrollView, StyleSheet, Switch, Text, ToastAndroid, TouchableOpacity, View } from 'react-native';
 import React from 'react';
 import COLORS from '../../../../consts/Colors';
 import { useState } from 'react';
@@ -19,9 +19,10 @@ import Share from 'react-native-share';
 // import Facebook from '../../../../assets/Facebook.svg';
 import SuggestMatche from '../../../components/SuggestMatche';
 import messaging from '@react-native-firebase/messaging';
-import Dollar from '../../../../assets/dollar.svg'
-import Edite from '../../../../assets/edit.svg'
-import Send from '../../../../assets/send.svg'
+import Dollar from '../../../../assets/dollar.svg';
+import Edite from '../../../../assets/edit.svg';
+import Send from '../../../../assets/send.svg';
+import Instagram from '../../../../assets/insta.svg';
 import { BarChart, ProgressChart } from 'react-native-chart-kit';
 import Speedometer from '../../../components/Speedometer';
 import { TextInput } from 'react-native-paper';
@@ -45,7 +46,7 @@ const CoordinatorBtn = [
 ];
 
 const data = {
-  labels: ["January", "February", "March", "April", "May", "June"],
+  labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
   datasets: [
     {
       data: [20, 45, 28, 80, 99, 43]
@@ -53,13 +54,61 @@ const data = {
   ]
 };
 
+export const SocialMediaData = [
+  {
+    id: '1',
+    name: 'Twitter',
+    image: <Twitter width={20} height={20} />,
+  },
+  {
+    id: '2',
+    name: 'Facebook',
+    image: <Facebook width={20} height={20} />,
+  },
+  {
+    id: '3',
+    name: 'WhatsApp',
+    image: <WhatsApp width={20} height={20} />,
+  },
+  {
+    id: '4',
+    name: 'Send to all on WhatsApp',
+    image: <WhatsApp width={20} height={20} />,
+  },
+  {
+    id: '5',
+    name: 'Instagram',
+    image: <Instagram width={20} height={20} />,
+  },
+  {
+    id: '6',
+    name: 'Linked In',
+    image: <Linkedin width={20} height={20} />,
+  },
+  {
+    id: '7',
+    name: 'TikTok',
+    image: <TikTok width={20} height={20} />,
+  },
+  {
+    id: '8',
+    name: 'Copy Link',
+    image: <CopyLink width={20} height={20} />,
+  },
+];
+
+
+// export SocialMediaData;
+
+// export default SocialMediaData
+
 
 const HomeScreen = ({ navigation }) => {
   // let afcode = Math.random().toString(16).slice(2);
   // const [code, setCode] = useState(afcode);
   const [progressmeter, setProgressMeter] = useState(60);
   const [uploading, setUploading] = useState(false);
-  const [emailAddress, setEmailAddress] = useState(false);
+  const [emailAddress, setEmailAddress] = useState(null);
   const [isEnabled2, setisEnabled2] = useState(false);
 
   const [reqUser, setReqUser] = useState(null);
@@ -72,16 +121,67 @@ const HomeScreen = ({ navigation }) => {
   const [suggestedMatch, setSuggestedMatch] = useState(false);
   const [matchIndex, setMatchIndex] = useState(null);
   const [matchUsers, setMatchUsers] = useState(null);
-
+  const [allUser, setAllUser] = useState(null);
   const [userTemp, setUserTemp] = useState(null);
   const [matchUserTemp, setMatchUserTemp] = useState(null);
+  const [Dimaond, setDimaond] = useState([]);
+  const [Gold, setGold] = useState([]);
+  const [Silver, setSilver] = useState([]);
+  const [Normal, setNormal] = useState([]);
+  const [yourClients, setYourClients] = useState([]);
+  const [changeEarningTime, setChangeEarningTime] = useState(false);
   const mediator = useSelector(selectMediatorUser);
 
 
   const CurrentUser = auth().currentUser.uid;
-
+  const Progress = (yourClients?.length / allUser?.length) * 100
 
   // console.log(reqUser);
+
+  function generateUniqueCode(influencerName) {
+    const timestamp = Date.now().toString(36).substring(2, 5); // Generate a timestamp-based string
+    const randomChars = Math.random().toString(36).substring(2, 3); // Generate a random string
+    const code = influencerName.substring(0, 3).toUpperCase() + timestamp + randomChars; // Combine influencer initials, timestamp, and random string
+    return code;
+  }
+
+  const fetchallUser = async () => {
+    await firestore()
+      .collection('Users')
+      .onSnapshot(querySnapshot => {
+        const users = [];
+        querySnapshot.forEach((documentSnapshot) => {
+          const data = documentSnapshot.data().userDetails;
+          users.push(data);
+        })
+        // export users
+        setAllUser(users)
+      })
+  }
+
+
+  const GetVIPCode = () => {
+    if (!mediator?.userDetails?.VipCode) {
+      const existingVipCodes = allUser?.filter((item) => item?.uid != CurrentUser && item?.MediatorId == 1 && item?.VipCode)
+        .map((item) => item?.VipCode);
+
+      let uniqueCode = generateUniqueCode(mediator?.userDetails?.Name);
+      while (existingVipCodes.includes(uniqueCode)) {
+        uniqueCode = generateUniqueCode(mediator?.userDetails?.Name);
+      }
+      firestore()
+        .collection('Users')
+        .doc(CurrentUser)
+        .update({
+          'userDetails.VipCode': uniqueCode,
+          'userDetails.VipCodeDate': new Date().toString(),
+        })
+        .then(() => {
+          // console.log('VIP code available now');
+          ToastAndroid.show("VIP code available now", ToastAndroid.SHORT);
+        })
+    }
+  }
 
   const GetFcmToken = () => {
     //get device token
@@ -118,14 +218,13 @@ const HomeScreen = ({ navigation }) => {
   }
 
   const SendToAll = async (autoCode) => {
-    // console.log(autoCode);
+    // console.log(mediator?.userDetails?.Name);
     // return
     const shareOptions = {
-      title: 'Share via',
+      title: 'Referal Code: ',
       // title: 'Promo Code: ' + autoCode,
-      message: 'Referal Code: ' + autoCode,  //string
+      message: 'Download: ' + 'DatesAndHoneyApp from AppStore, ' + 'Referal Code: ' + autoCode,  //string
     };
-
     // return
     try {
       const ShareResponce = await Share.open(shareOptions)
@@ -142,11 +241,11 @@ const HomeScreen = ({ navigation }) => {
   }
 
   const SendToSocial = async (autoCode, id) => {
-    // console.log(id);
+    // console.log(id , autoCode);
     // return;
-    if (id == 7) {
+    if (id == 8) {
       Clipboard.setString(autoCode);
-      ToastAndroid.show("Copied to clipboard!", ToastAndroid.SHORT);
+      ToastAndroid.show("Your affiliated code Copied to clipboard!", ToastAndroid.SHORT);
       // console.log('tes');
     }
     else {
@@ -154,7 +253,7 @@ const HomeScreen = ({ navigation }) => {
       if (id == 1) {
         shareOptions = {
           title: 'Share via',
-          message: 'Referal Codsse: ' + autoCode,  //string
+          message: 'Referal Codsse: ' + autoCode,
           social: Share.Social.TWITTER,
           Twitter: 'test'
           // whatsAppNumber: "9199999999",
@@ -231,20 +330,20 @@ const HomeScreen = ({ navigation }) => {
         shareOptions = {
           title: 'Share via',
           message: 'Referal Codsse: ' + autoCode,  //string
-          social: Share.Social.PINTEREST,
-          PINTEREST: 'test'
+          social: Share.Social.WHATSAPP,
+          whatsAppNumber: "9199999999",
         };
         try {
           const { isInstalled } = await Share.isPackageInstalled(
-            "com.pinterest.android"
+            "com.whatsapp.android"
           );
 
           if (isInstalled) {
             await Share.shareSingle(shareOptions);
           } else {
             Alert.alert(
-              "PINTEREST not installed",
-              "PINTEREST not installed, please install.",
+              "Whatsapp not installed",
+              "Whatsapp not installed, please install.",
               [{ text: "OK", onPress: () => console.log("OK Pressed") }]
             );
           }
@@ -253,6 +352,31 @@ const HomeScreen = ({ navigation }) => {
         }
       }
       else if (id == 5) {
+        shareOptions = {
+          title: 'Share via',
+          message: 'Referal Codsse: ' + autoCode,  //string
+          social: Share.Social.INSTAGRAM,
+          PINTEREST: 'test'
+        };
+        try {
+          const { isInstalled } = await Share.isPackageInstalled(
+            "com.instagram.android"
+          );
+
+          if (isInstalled) {
+            await Share.shareSingle(shareOptions);
+          } else {
+            Alert.alert(
+              "INSTAGRAM not installed",
+              "INSTAGRAM not installed, please install.",
+              [{ text: "OK", onPress: () => console.log("OK Pressed") }]
+            );
+          }
+        } catch (err) {
+          console.log(err);
+        }
+      }
+      else if (id == 6) {
         shareOptions = {
           title: 'Share via',
           message: 'Referal Codsse: ' + autoCode,  //string
@@ -277,24 +401,24 @@ const HomeScreen = ({ navigation }) => {
           console.log(err);
         }
       }
-      else if (id == 6) {
+      else if (id == 7) {
         shareOptions = {
           title: 'Share via',
           message: 'Referal Codsse: ' + autoCode,  //string
-          social: Share.Social.TELEGRAM,
+          social: Share.Social.TikTok,
           TELEGRAM: 'test'
         };
         try {
           const { isInstalled } = await Share.isPackageInstalled(
-            "com.telegram.android"
+            "com.tiktok.android"
           );
 
           if (isInstalled) {
             await Share.shareSingle(shareOptions);
           } else {
             Alert.alert(
-              "TELEGRAM not installed",
-              "TELEGRAM not installed, please install.",
+              "TikTok not installed",
+              "TikTok not installed, please install.",
               [{ text: "OK", onPress: () => console.log("OK Pressed") }]
             );
           }
@@ -302,31 +426,51 @@ const HomeScreen = ({ navigation }) => {
           console.log(err);
         }
       }
-
-
-
-      // try {
-      //   const ShareResponce = await Share.shareSingle(shareOptions)
-      //     .then((res) => {
-      //       console.log(res);
-      //     })
-      //     .catch((err) => {
-      //       err && console.log('Error2', err);
-      //     });
-      // }
-      // catch (e) {
-      //   console.log('Error', e);
-      // }
     }
   }
 
+
+  const OnGetYourClients = async () => {
+    var GoldUser
+    var DiamondUser
+    var SilverUser
+    var NormalUser
+    const Today = new Date()
+    const currentMonth = Today.getMonth() + 1;
+    if (mediator?.YourClients) {
+      const clientsForCurrentMonth = mediator.YourClients.filter((client) => {
+        if (client?.timestamp) {
+          const clientDate = new Date(client?.timestamp);
+          return clientDate?.getMonth() + 1 === currentMonth;
+        }
+        return false;
+      });
+      if (clientsForCurrentMonth?.length > 0) {
+        DiamondUser = clientsForCurrentMonth?.filter((item) => item?.MembershipId == 654);
+        GoldUser = clientsForCurrentMonth?.filter((item) => item?.MembershipId == 456);
+        SilverUser = clientsForCurrentMonth?.filter((item) => item?.MembershipId == 123);
+        NormalUser = clientsForCurrentMonth?.filter((item) => !item?.MembershipId);
+
+        setDimaond(DiamondUser);
+        setGold(GoldUser);
+        setSilver(SilverUser);
+        setNormal(NormalUser);
+        setYourClients(clientsForCurrentMonth);
+      }
+      console.log(yourClients.Dimaond);
+    }
+    // console.log(GoldUser, DiamondUser, SilverUser, NormalUser);
+  }
+
   useEffect(() => {
+    fetchallUser();
+    GetVIPCode();
     locationPermission();
     getCurrentLocation();
 
     // NotificationPermission();
     GetFcmToken();
-
+    OnGetYourClients();
   }, [])
 
   // useEffect(() => {
@@ -383,6 +527,29 @@ const HomeScreen = ({ navigation }) => {
         error => { console.log(error) }
       );
     }, 5000);
+  }
+
+
+  const OnSendEmail = () => {
+    const EMAIL_REGEX = /@[a-zA-Z0-9]+\.[A-Za-z]+$/;
+    // console.log(emailAddress);
+    if (emailAddress == '' || !emailAddress === EMAIL_REGEX.test(emailAddress)) {
+      // const email = 'example@example.com';
+      if (emailAddress == '') {
+        ToastAndroid.show('Email address cannot be empty', ToastAndroid.SHORT)
+      }
+      else if (!emailAddress === EMAIL_REGEX.test(emailAddress)) {
+        ToastAndroid.show('That email address is invalid!', ToastAndroid.SHORT)
+      }
+    }
+    else {
+      const subject = 'Referal Code';
+      const body = mediator?.userDetails?.VipCode;
+      const mailtoUrl = `mailto:${emailAddress}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+      Linking.openURL(mailtoUrl)
+        .catch((err) => console.error('An error occurred', err));
+    }
   }
 
 
@@ -456,10 +623,10 @@ const HomeScreen = ({ navigation }) => {
                 <View><Text style={{
                   color: COLORS.black,
                   fontSize: 13
-                }}>{mediator?.userDetails?.RefCode ? mediator?.userDetails?.RefCode : 'null'}</Text></View>
+                }}>{mediator?.userDetails?.VipCode ? mediator?.userDetails?.VipCode : 'Please wait...'}</Text></View>
               </View>
               <TouchableOpacity
-                onPress={() => navigation.navigate('CustomeEfilatedCode')}
+                onPress={() => navigation.navigate('CustomeEfilatedCode', { allUser: allUser })}
                 style={{
                   color: COLORS.black,
                   fontSize: 13,
@@ -488,14 +655,24 @@ const HomeScreen = ({ navigation }) => {
                 alignItems: 'center',
                 justifyContent: 'center',
               }}>
-                <Text style={{
-                  paddingRight: 10,
-                  color: COLORS.black,
-                  fontSize: 12
-                }}>
-                  Last Month
-                </Text>
-                <TouchableOpacity>
+                {changeEarningTime ?
+                  <Text style={{
+                    paddingRight: 10,
+                    color: COLORS.black,
+                    fontSize: 12
+                  }}>
+                    Last Year
+                  </Text>
+                  :
+                  <Text style={{
+                    paddingRight: 10,
+                    color: COLORS.black,
+                    fontSize: 12
+                  }}>
+                    Last Month
+                  </Text>
+                }
+                <TouchableOpacity onPress={() => setChangeEarningTime(!changeEarningTime)}>
                   <Image source={require('../../../../assets/goback.png')} resizeMode='contain' style={{
                     width: 12,
                     height: 12,
@@ -609,7 +786,7 @@ const HomeScreen = ({ navigation }) => {
               <View style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                width: '10%'
+                width: '15%'
               }}>
                 <Image source={require('../../../../assets/like1.png')} resizeMode='contain' style={{
                   width: 20,
@@ -635,19 +812,24 @@ const HomeScreen = ({ navigation }) => {
               <View style={{
                 width: '75%',
                 alignItems: 'center',
+                // backgroundColor:COLORS.gray,
+                alignItems: 'flex-end'
               }}>
                 <Text style={{
                   fontSize: 13,
-                  color: COLORS.black
-                }}>13 people used your
-                  referral code this month</Text>
+                  color: COLORS.black,
+                }}>
+                  {yourClients?.length} people used your
+                  referral code this month
+                </Text>
               </View>
               <TouchableOpacity
-                onPress={() => navigation.navigate('YourClients')}
+                onPress={() => navigation.navigate('YourClients', { DimaondUsers: Dimaond, GoldUsers: Gold, SilverUsers: Silver, NormalUsers: Normal })}
                 style={{
                   color: COLORS.black,
                   fontSize: 13,
-                  width: '5%'
+                  width: '10%',
+                  alignItems: 'flex-end'
                 }}>
                 <Image source={require('../../../../assets/goback.png')} resizeMode='contain' style={{
                   width: 12,
@@ -696,14 +878,14 @@ const HomeScreen = ({ navigation }) => {
               marginTop: 30,
             }}>
               <View style={{
-                paddingBottom: 20
+                paddingBottom: 20,
               }}>
                 <Text style={{ color: COLORS.black, fontSize: 14, fontWeight: 'bold' }}>Rewards Program:</Text>
               </View>
               <View style={{
                 alignItems: 'center'
               }}>
-                <Speedometer value={progressmeter} />
+                <Speedometer value={Progress ? Progress.toFixed(0) : 0} valueTwo={Progress} />
               </View>
 
               <View>
@@ -740,7 +922,7 @@ const HomeScreen = ({ navigation }) => {
               elevation: 5,
               alignItems: 'center',
               paddingRight: 20,
-              paddingVertical: 5,
+              // paddingVertical: 5,
             }}>
               <View style={{
                 flexDirection: 'row',
@@ -762,52 +944,65 @@ const HomeScreen = ({ navigation }) => {
                   }}
                 />
               </View>
-              <View style={{
-                color: COLORS.black,
-                fontSize: 13
-              }}>
-                <Send width={20} height={20} />
-              </View>
-            </View>
-
-
-            <View style={{
-              marginTop: 30,
-              width: width / 1.1,
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              // backgroundColor: COLORS.white,
-              // borderRadius: 10,
-              // elevation: 5,
-              alignItems: 'center',
-              // paddingRight: 20,
-              paddingVertical: 5
-            }}>
               <TouchableOpacity
-                onPress={() => SendToSocial(mediator?.userDetails?.RefCode, 1)}
+                onPress={() => OnSendEmail()}
                 style={{
-                  width: '45%',
-                  elevation: 5,
-                  backgroundColor: COLORS.white,
-                  borderRadius: 10,
-                  paddingVertical: 15,
-                  paddingHorizontal: 10,
-                  alignItems: 'center'
+                  color: COLORS.black,
+                  fontSize: 13,
                 }}>
-                <View style={{
-                  flexDirection: 'row',
-                  alignItems: 'center'
-                }}>
-                  <Twitter width={20} height={20} />
-                  <Text style={{
-                    paddingLeft: 5,
-                    fontSize: 13,
-                    color: COLORS.black
-                  }}>Twitter</Text>
-                </View>
+                <Send width={20} height={20} />
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => SendToSocial(mediator?.userDetails?.RefCode, 2)}
+            </View>
+            {/* <View style={{
+              marginTop: 30,
+              width: '100%',
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              paddingVertical: 5,
+            }}> */}
+            {SocialMediaData &&
+              <View style={{
+                marginTop: 30,
+                width: '100%',
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingVertical: 5,
+              }}>
+                {SocialMediaData.map((item, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    onPress={() => SendToSocial(mediator?.userDetails?.VipCode, item?.id)}
+                    style={{
+                      width: '48%',
+                      marginBottom: 10,
+                      elevation: 5,
+                      backgroundColor: COLORS.white,
+                      borderRadius: 10,
+                      paddingVertical: 15,
+                      paddingHorizontal: 20,
+                      alignItems: 'center'
+                    }}>
+                    <View style={{
+                      flexDirection: 'row',
+                      alignItems: 'center'
+                    }}>
+                      {item.image}
+                      <Text style={{
+                        paddingLeft: 5,
+                        fontSize: 12,
+                        color: COLORS.black
+                      }}>{item.name}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            }
+            {/* <TouchableOpacity
+                onPress={() => SendToSocial(mediator?.userDetails?.VipCode, 2)}
                 style={{
                   width: '45%',
                   elevation: 5,
@@ -829,9 +1024,9 @@ const HomeScreen = ({ navigation }) => {
                   }}>Facebook</Text>
                 </View>
               </TouchableOpacity>
-            </View>
+            </View> */}
 
-            <View style={{
+            {/* <View style={{
               marginTop: 10,
               width: width / 1.1,
               flexDirection: 'row',
@@ -844,7 +1039,7 @@ const HomeScreen = ({ navigation }) => {
               paddingVertical: 5
             }}>
               <TouchableOpacity
-                onPress={() => SendToSocial(mediator?.userDetails?.RefCode, 3)}
+                onPress={() => SendToSocial(mediator?.userDetails?.VipCode, 3)}
                 style={{
                   width: '45%',
                   elevation: 5,
@@ -867,7 +1062,7 @@ const HomeScreen = ({ navigation }) => {
                 </View>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => SendToSocial(mediator?.userDetails?.RefCode, 3)}
+                onPress={() => SendToSocial(mediator?.userDetails?.VipCode, 3)}
                 style={{
                   width: '45%',
                   elevation: 5,
@@ -904,7 +1099,7 @@ const HomeScreen = ({ navigation }) => {
               paddingVertical: 5
             }}>
               <TouchableOpacity
-                onPress={() => SendToSocial(mediator?.userDetails?.RefCode, 4)}
+                onPress={() => SendToSocial(mediator?.userDetails?.VipCode, 4)}
                 style={{
                   width: '45%',
                   elevation: 5,
@@ -927,7 +1122,7 @@ const HomeScreen = ({ navigation }) => {
                 </View>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => SendToSocial(mediator?.userDetails?.RefCode, 5)}
+                onPress={() => SendToSocial(mediator?.userDetails?.VipCode, 5)}
                 style={{
                   width: '45%',
                   elevation: 5,
@@ -965,7 +1160,7 @@ const HomeScreen = ({ navigation }) => {
               paddingVertical: 5
             }}>
               <TouchableOpacity
-                onPress={() => SendToSocial(mediator?.userDetails?.RefCode, 6)}
+                onPress={() => SendToSocial(mediator?.userDetails?.VipCode, 6)}
                 style={{
                   width: '45%',
                   elevation: 5,
@@ -988,7 +1183,7 @@ const HomeScreen = ({ navigation }) => {
                 </View>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => SendToSocial(mediator?.userDetails?.RefCode, 7)}
+                onPress={() => SendToSocial(mediator?.userDetails?.VipCode, 7)}
                 style={{
                   width: '45%',
                   elevation: 5,
@@ -1010,12 +1205,12 @@ const HomeScreen = ({ navigation }) => {
                   }}>Copy Link</Text>
                 </View>
               </TouchableOpacity>
-            </View>
+            </View> */}
 
             <View style={{
               paddingVertical: 20
             }}>
-              <CustomeButton title={'Send to all'} onpress={() => SendToAll(mediator?.userDetails?.RefCode)} width={width / 1.1} />
+              <CustomeButton title={'Send to all'} onpress={() => SendToAll(mediator?.userDetails?.VipCode)} width={width / 1.1} />
             </View>
 
 
@@ -1043,7 +1238,7 @@ const HomeScreen = ({ navigation }) => {
             <View style={{
               paddingVertical: 20
             }}>
-              <CustomeButton title={'Send message'} width={width / 1.1} />
+              <CustomeButton title={'Send message'} width={width / 1.1} onpress={() => SendToAll()} />
             </View>
 
 

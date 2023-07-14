@@ -11,6 +11,9 @@ import MediatorCreateFoodScreen from '../screens/MediatorLogin/MediatorCreateFoo
 import MediatorEditFoodScreen from '../screens/MediatorLogin/MediatorEditFoodScreen';
 import { selectMediatorUser } from '../../../redux/reducers/Reducers';
 import { useSelector } from 'react-redux';
+import MediatorAccountScreen from '../screens/MediatorLogin/MediatorAccountScreen';
+import MediatorPaymentOptionScreen from '../screens/MediatorLogin/MediatorPaymentOptionScreen';
+import MediatorAddCardScreen from '../screens/MediatorLogin/MediatorAddCardScreen';
 
 
 const Tab = createBottomTabNavigator();
@@ -64,6 +67,35 @@ const HomeStack = ({ navigation }) => (
     </Tab.Navigator>
 )
 
+const ProfileStack = ({ navigation }) => (
+    <Tab.Navigator screenOptions={{
+        headerShown: false,
+        tabBar: false,
+        tabBarStyle: {
+            paddingHorizontal: 20,
+            paddingTop: 0,
+            backgroundColor: COLORS.white,
+            borderTopWidth: 0,
+            elevation: 20,
+            borderTopRightRadius: 20,
+            borderTopLeftRadius: 20,
+        },
+    }}>
+        <Tab.Screen name='MediatorProfileScreen' component={MediatorProfileScreen} options={{
+            unmountOnBlur: true,
+        }} />
+        <Tab.Screen name='MediatorAccountScreen' component={MediatorAccountScreen} options={{
+            unmountOnBlur: true,
+        }} />
+        <Tab.Screen name='MediatorPaymentOptionScreen' component={MediatorPaymentOptionScreen} options={{
+            unmountOnBlur: true,
+        }} />
+        <Tab.Screen name='MediatorAddCardScreen' component={MediatorAddCardScreen} options={{
+            unmountOnBlur: true,
+        }} />
+    </Tab.Navigator>
+)
+
 const MediatorCreateStack = ({ navigation }) => (
     user = useSelector(selectMediatorUser),
 
@@ -98,7 +130,7 @@ const MediatorCreateStack = ({ navigation }) => (
 
 const MediatorEventAndFoodCoordinatorBt = () => {
     const user = useSelector(selectMediatorUser)
-// console.log(user);
+    // console.log(user);
 
     return (
         <Tab.Navigator
@@ -119,7 +151,7 @@ const MediatorEventAndFoodCoordinatorBt = () => {
             }}>
             <Tab.Screen name="HomeScreens" component={HomeStack}
                 options={{
-                    unmountOnBlur:true,
+                    unmountOnBlur: true,
                     tabBarIcon: ({ focused, color }) => (
                         <View>
                             {focused == true ? (
@@ -168,7 +200,7 @@ const MediatorEventAndFoodCoordinatorBt = () => {
 
             <Tab.Screen name="MediatorCreateStack" component={MediatorCreateStack}
                 options={{
-                    unmountOnBlur:true,
+                    unmountOnBlur: true,
                     // tabBarBadge: 3,
                     tabBarIcon: ({ focused, color }) => (
                         <View>
@@ -212,9 +244,9 @@ const MediatorEventAndFoodCoordinatorBt = () => {
                     )
                 }} />
 
-            <Tab.Screen name="MediatorProfileScreen" component={MediatorProfileScreen}
+            <Tab.Screen name="ProfileStack" component={ProfileStack}
                 options={{
-                    unmountOnBlur:true,
+                    unmountOnBlur: true,
                     tabBarIcon: ({ focused, color }) => (
                         <View>
                             {focused == true ? (

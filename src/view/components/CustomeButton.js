@@ -20,6 +20,7 @@ const CustomeButton = ({ border, width, title, image, imagew, imageh, color, bco
                     }}>
                         <Text style={{
                             color: color ? color : COLORS.black,
+                            fontSize:16,
                         }}>{title}</Text>
                     </View>
                 </TouchableOpacity>
@@ -44,7 +45,8 @@ const CustomeButton = ({ border, width, title, image, imagew, imageh, color, bco
                             marginRight: 4
                         }} />
                         <Text style={{
-                            color: color ? color : COLORS.black
+                            fontSize:16,
+                            color: color ? color : COLORS.black,
                         }}>{title}</Text>
                     </View>
                 </TouchableOpacity>

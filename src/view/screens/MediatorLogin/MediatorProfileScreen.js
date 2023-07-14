@@ -32,6 +32,12 @@ const MediatorProfileScreen = ({ navigation }) => {
     const [uploading, setUploading] = useState(false);
     const dispatch = useDispatch();
 
+
+    const OnPaymentFlow = () => {
+        // console.log('here');
+        navigation.navigate('MediatorAccountScreen')
+    }
+
     const OnLogOut = () => {
         // navigation.navigate('LoginScreen')
         try {
@@ -293,6 +299,16 @@ const MediatorProfileScreen = ({ navigation }) => {
                         <View style={{
                             alignItems: 'center',
                             marginTop: 40,
+
+                        }}>
+                            <CustomeButton onpress={() => OnPaymentFlow()}
+                                title={'Payment Card Details'} width={width / 1.2} color={COLORS.black} bcolor={COLORS.light} border={COLORS.lighta} />
+                        </View>
+
+
+                        <View style={{
+                            alignItems: 'center',
+                            marginTop: 20,
                             // paddingHorizontal: 20,
                         }}>
                             {name != mediator?.userDetails?.Name || email != mediator?.userDetails?.email || about != mediator?.userDetails?.Bio ?
@@ -323,8 +339,6 @@ const MediatorProfileScreen = ({ navigation }) => {
                                     <CustomeButton width={width / 1.2} title={'Log out'} bcolor={COLORS.transparent} border={COLORS.gray} onpress={() => OnLogOut()} />
                                 </View>
                             }
-                            {/* <CustomeButton onpress={() => OnLogOut()}
-                                title={'Log out'} width={150} color={COLORS.black} bcolor={COLORS.transparent} border={COLORS.black} /> */}
                             {/* <CustomeButton  onpress={() => OnLogOut()}
                                 title={'Log out'} width={width/1.2} color={COLORS.white} /> */}
                         </View>

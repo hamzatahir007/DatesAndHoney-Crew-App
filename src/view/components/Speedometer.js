@@ -6,12 +6,13 @@ import { PieChart, ProgressChart } from 'react-native-chart-kit';
 import Pie from 'react-native-pie';
 const { width, height } = Dimensions.get("window");
 
-const Speedometer = ({ value, minValue, maxValue, size, strokeWidth, backgroundColor, fillColor, textColor, route }) => {
+const Speedometer = ({ value, valueTwo, minValue, maxValue, size, strokeWidth, backgroundColor, fillColor, textColor, route }) => {
     // const {value} = route.params
     // console.log(value);
+    // const Progress = valueTwo.toFixed(0)
+    // console.log(Progress);
 
     return (
-
         <View style={{ width: 175, alignItems: 'center' }}>
             <Pie
                 radius={80}
@@ -30,11 +31,10 @@ const Speedometer = ({ value, minValue, maxValue, size, strokeWidth, backgroundC
                 <Text
                     style={styles.gaugeText}
                 >
-                    {value}%
+                    {valueTwo.toFixed(1)}%
                 </Text>
             </View>
         </View>
-
 
         // <ProgressChart
         //     data={{

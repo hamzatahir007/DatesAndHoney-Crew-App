@@ -11,7 +11,7 @@ import MapView, { Callout, Circle, Marker, PROVIDER_GOOGLE } from 'react-native-
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Picker } from '@react-native-picker/picker';
 import { useSelector } from 'react-redux';
-import { selectMediatorUser, selectUser } from '../../../../redux/reducers/Reducers';
+import { selectMediatorUser, selectPaymentCards, selectUser } from '../../../../redux/reducers/Reducers';
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import storage from '@react-native-firebase/storage';
@@ -27,6 +27,7 @@ import Dialog, {
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import GoogleMapKey from '../../../consts/GoogleMapKey';
 import Loader from '../../components/Loader';
+import SVGBack from '../../../assets/arrowleft.svg'
 
 // import Geocoder from 'react-native-geocoding';
 // import Geocoder from 'react-native-geocoder';
@@ -52,13 +53,18 @@ const MediatorEditEventScreen = ({ navigation, route }) => {
     const [startTime, setStartTime] = useState(details.startTime);
     const [endTime, setEndTime] = useState(details.endTime);
     const [location, setLocation] = useState(details.location);
-    // console.log('change location ==>', location.latitude);
+    // console.log('change location ==>', location);
     const [totalTicketPrice, setTotalTicketPrice] = useState(details.totalTicketPrice);
     const [pin, setPin] = useState({
         latitude: 24.860966,
         longitude: 66.990501,
     });
-    const [region, setRegion] = useState(details.Address);
+    const [region, setRegion] = useState({
+        latitude: 37.78825,
+        longitude: -122.4324,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421
+    });
     const [image1, setImage1] = useState(details.image1);
     const [image2, setImage2] = useState(details.secimageUrl);
     const [image3, setImage3] = useState(details.thirdimageUrl);
@@ -101,7 +107,10 @@ const MediatorEditEventScreen = ({ navigation, route }) => {
     const [isDiscountEndTimePickerVisible, setDiscountEndTimePickerVisibility] = useState(false);
     const [TicketModaldata, setTicketModaldata] = useState(details.TicketModaldata);
     const [ticketIndex, setTicketIndex] = useState(null);
-
+    const [discountedReferral, setDiscountedReferral] = useState(details?.discountedReferral);
+    const [promoterReward, setPromoterReward] = useState(details?.promoterReward);
+    const [showPoppup, setShowPoppup] = useState(null);
+    const SelectedPaymentCards = useSelector(selectPaymentCards)
     // const [Date, setDate] = useState('');
     // const [Date, setDate] = useState('');
 
@@ -125,7 +134,8 @@ const MediatorEditEventScreen = ({ navigation, route }) => {
 
 
 
-    // console.log(pin.latitude , pin.longitude);
+
+    // console.log(details?.discountedReferral, details?.promoterReward);
     // const getAddress = async (pin) => {
     //     // console.log(pin.latitude, pin.longitude);
     //     Geocoder.geocodePosition(pin)
@@ -565,7 +575,7 @@ const MediatorEditEventScreen = ({ navigation, route }) => {
 
 
     const OnHandleEvents = () => {
-        if (imageArray?.length < 1 || !name || !description || !startDate || !endDate || !startTime || !endTime || !location || !totalTicketPrice || TicketModaldata.length < 1) {
+        if (imageArray?.length < 1 || !name || !description || !startDate || !endDate || !startTime || !endTime || !totalTicketPrice || TicketModaldata.length < 1) {
             if (imageArray?.length < 1) {
                 // console.log('aklxjn');
                 ToastAndroid.show("Please select at least One images!", ToastAndroid.SHORT);
@@ -588,9 +598,9 @@ const MediatorEditEventScreen = ({ navigation, route }) => {
             else if (!endTime) {
                 ToastAndroid.show("Please select End Time first!", ToastAndroid.SHORT);
             }
-            else if (!location) {
-                ToastAndroid.show("Please select location first!", ToastAndroid.SHORT);
-            }
+            // else if (!location) {
+            //     ToastAndroid.show("Please select location first!", ToastAndroid.SHORT);
+            // }
             else if (!totalTicketPrice) {
                 ToastAndroid.show("Please select total TicketPrice first!", ToastAndroid.SHORT);
             }
@@ -606,49 +616,59 @@ const MediatorEditEventScreen = ({ navigation, route }) => {
     const OnUpdateEvents = async () => {
         // console.log('add events here: ');
         // return
-        const isHttpsFormatOne = /^https:\/\//.test(image1);
-        const isHttpsFormatTwo = /^https:\/\//.test(image2);
-        const isHttpsFormatThree = /^https:\/\//.test(image3);
-        const isHttpsFormatFoure = /^https:\/\//.test(image4);
-        const isHttpsFormatFife = /^https:\/\//.test(image5);
-        const isHttpsFormatSix = /^https:\/\//.test(image6);
-        try {
-            setUploading(true)
-            // const imageUrl = await uploadImage();
-            var Data = new Object();
-            Data.image1 = isHttpsFormatOne == true ? image1 : await uploadImage();
-            Data.secimageUrl = isHttpsFormatTwo == true ? image2 : await uploadSecondImage();
-            Data.thirdimageUrl = isHttpsFormatThree == true ? image3 : await uploadThirdImage();
-            Data.fourthimageUrl = isHttpsFormatFoure == true ? image4 : await uploadFourthImage();
-            Data.fifthimageUrl = isHttpsFormatFife == true ? image5 : await uploadFifthImage();
-            Data.sixthimageUrl = isHttpsFormatSix == true ? image6 : await uploadSixthImage();
-            Data.Title = name
-            Data.description = description;
-            Data.startDate = startDate;
-            Data.endDate = endDate;
-            Data.startTime = startTime;
-            Data.endTime = endTime;
-            Data.location = location;
-            Data.Address = region;
-            Data.totalTicketPrice = totalTicketPrice;
-            Data.TicketModaldata = TicketModaldata;
-            Data.owneruid = currentuser?.userDetails?.uid;
-            Data.ownerName = currentuser?.userDetails?.Name;
-            Data.owneremail = currentuser?.userDetails?.email;
-            Data.uid = details.uid;
-            Data.timeStamp = new Date().toString();
-            // console.log(Data);
-            // return;
-            const Docres = firestore().collection('Events').doc(Data.uid)
-            Docres.update(Data).then(() => {
-                ToastAndroid.show('Event Updated successfully', ToastAndroid.SHORT)
-                RefereshForm();
-                navigation.goBack();
+        if (SelectedPaymentCards) {
+
+            const isHttpsFormatOne = /^https:\/\//.test(image1);
+            const isHttpsFormatTwo = /^https:\/\//.test(image2);
+            const isHttpsFormatThree = /^https:\/\//.test(image3);
+            const isHttpsFormatFoure = /^https:\/\//.test(image4);
+            const isHttpsFormatFife = /^https:\/\//.test(image5);
+            const isHttpsFormatSix = /^https:\/\//.test(image6);
+            try {
+                setUploading(true)
+                // const imageUrl = await uploadImage();
+                var Data = new Object();
+                Data.image1 = isHttpsFormatOne == true ? image1 : await uploadImage();
+                Data.secimageUrl = isHttpsFormatTwo == true ? image2 : await uploadSecondImage();
+                Data.thirdimageUrl = isHttpsFormatThree == true ? image3 : await uploadThirdImage();
+                Data.fourthimageUrl = isHttpsFormatFoure == true ? image4 : await uploadFourthImage();
+                Data.fifthimageUrl = isHttpsFormatFife == true ? image5 : await uploadFifthImage();
+                Data.sixthimageUrl = isHttpsFormatSix == true ? image6 : await uploadSixthImage();
+                Data.Title = name
+                Data.description = description;
+                Data.startDate = startDate;
+                Data.endDate = endDate;
+                Data.startTime = startTime;
+                Data.endTime = endTime;
+                Data.location = location;
+                Data.Address = location ? region : null;
+                Data.totalTicketPrice = totalTicketPrice;
+                Data.TicketModaldata = TicketModaldata;
+                Data.owneruid = currentuser?.userDetails?.uid;
+                Data.ownerName = currentuser?.userDetails?.Name;
+                Data.owneremail = currentuser?.userDetails?.email;
+                Data.uid = details.uid;
+                Data.discountedReferral = discountedReferral;
+                Data.promoterReward = promoterReward;
+                Data.timeStamp = details.timeStamp;
+                // console.log(Data);
+                // return;
+                const Docres = firestore().collection('Events').doc(Data.uid)
+                Docres.update(Data).then(() => {
+                    ToastAndroid.show('Event Updated successfully', ToastAndroid.SHORT)
+                    RefereshForm();
+                    navigation.goBack();
+                    setUploading(false)
+                })
+            } catch (error) {
                 setUploading(false)
-            })
-        } catch (error) {
-            setUploading(false)
-            console.log('error test1', error);
+                console.log('error test1', error);
+            }
+
+        }
+        else {
+            console.log('yes');
+            setShowPoppup(true)
         }
     }
     const openEditModal = (index, item) => {
@@ -1017,15 +1037,23 @@ const MediatorEditEventScreen = ({ navigation, route }) => {
                 <View style={{
                     flexDirection: 'row',
                     alignItems: 'center',
-                    paddingHorizontal: 20
+                    paddingHorizontal: 20,
+                    height: 60,
                 }}>
+                    <TouchableOpacity 
+                    onPress={() => navigation.goBack()} 
+                    style={{
+                        flex: 1,
+                    }}>
+                        <SVGBack width={20} height={20} />
+                    </TouchableOpacity>
                     <View style={{
                         flex: 2,
-                        marginTop: 20,
-                        alignItems: 'flex-end'
+                        // marginTop: 20,
+                        alignItems: 'center'
                     }}>
                         <Text style={{
-                            fontSize: 20,
+                            fontSize: 16,
                             fontWeight: 'bold',
                             color: COLORS.black,
                         }}>Event Details</Text>
@@ -1034,7 +1062,6 @@ const MediatorEditEventScreen = ({ navigation, route }) => {
 
                     <View style={{
                         flex: 1,
-                        marginTop: 20,
                         alignItems: 'flex-end'
                     }}>
                         <TouchableOpacity
@@ -1540,7 +1567,13 @@ const MediatorEditEventScreen = ({ navigation, route }) => {
                         </View>
                         <View style={{ alignItems: 'center' }}>
                             <View style={{ marginTop: 10 }}>
-                                <Text style={{ color: COLORS.black }}> Location </Text>
+                                <View style={{
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                }}>
+                                    <Text style={{ color: COLORS.black }}> Location </Text>
+                                    <Text style={{ color: COLORS.gray, fontSize: 12, }}> (Optional) </Text>
+                                </View>
                                 <View style={styles.NumberInput}>
                                     <TextInput
                                         value={location}
@@ -1594,37 +1627,112 @@ const MediatorEditEventScreen = ({ navigation, route }) => {
                             </View>
                         </View>
 
+                        <View style={{ alignItems: 'center' }}>
+                            <View style={{ marginTop: 10 }}>
+                                <View style={{
+                                    flexDirection: 'row',
+                                    alignItems: 'center'
+                                }}>
+                                    <Text style={{ color: COLORS.black }}>Discounted Referral </Text>
+                                    <Text style={{ color: COLORS.gray, fontSize: 12, }}> (Optional) </Text>
+                                </View>
+                                <View style={styles.NumberInput}>
+                                    <TextInput
+                                        value={discountedReferral}
+                                        placeholderTextColor={COLORS.gray}
+                                        placeholder={'Ticket Price'}
+                                        onChangeText={discountedReferral => setDiscountedReferral(discountedReferral)
+                                        }
+                                        selectionColor={COLORS.black}
+                                        underlineColor={COLORS.white}
+                                        activeUnderlineColor={COLORS.white}
+                                        style={styles.TextInput}
+                                        editable={true}
+                                    />
+                                    <View><Text>%</Text></View>
+                                </View>
+                            </View>
+                        </View>
+
+                        <View style={{ alignItems: 'center' }}>
+                            <View style={{ marginTop: 10 }}>
+                                <View style={{
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                }}>
+                                    <Text style={{ color: COLORS.black }}>Promoter's Reward </Text>
+                                    <Text style={{ color: COLORS.gray, fontSize: 12, }}> (Optional) </Text>
+                                </View>
+                                <View style={styles.NumberInput}>
+                                    <TextInput
+                                        value={promoterReward}
+                                        placeholderTextColor={COLORS.gray}
+                                        placeholder={'Ticket Price'}
+                                        onChangeText={promoterReward => setPromoterReward(promoterReward)
+                                        }
+                                        selectionColor={COLORS.black}
+                                        underlineColor={COLORS.white}
+                                        activeUnderlineColor={COLORS.white}
+                                        style={styles.TextInput}
+                                        editable={true}
+                                    />
+                                    <View><Text>%</Text></View>
+                                </View>
+                            </View>
+                        </View>
+
                         {!TicketModaldata?.length == 0 ?
                             <View>
-                                {TicketModaldata.map((item, index) => (
-                                    <TouchableOpacity
-                                        key={index}
-                                        // onPress={() => setTicketindex(index)}
-                                        style={{
-                                            padding: 20,
-                                            backgroundColor: COLORS.white,
-                                            marginHorizontal: 20,
-                                            marginTop: 20,
-                                            elevation: 4,
-                                            // marginBottom: 200,
-                                            borderRadius: 20,
-                                        }}>
-                                        <View
+                                {TicketModaldata.map((item, index) => {
+                                    var isoDate;
+                                    var currentTime;
+                                    var givenDateTime;
+                                    var remainingTime;
+                                    var remainingHours;
+                                    var remainingMinutes;
+                                    var remainingSeconds;
+                                    var hoursLeft;
+                                    if (item?.discountendDate && item?.discountendTime) {
+                                        const [month, day, year] = item?.discountendDate?.split('/');
+                                        const [time, period] = item?.discountendTime?.split(/:| /);
+                                        isoDate = new Date(`${year}-${month}-${day}T${period.toLowerCase() === 'pm' ? parseInt(time, 10) + 12 : time}:00:00Z`).toISOString();
+                                        currentTime = new Date();
+                                        givenDateTime = new Date(isoDate);
+                                        remainingTime = givenDateTime - currentTime;
+                                        remainingHours = Math?.floor(remainingTime / (1000 * 60 * 60));
+                                        remainingMinutes = Math?.floor((remainingTime % (1000 * 60 * 60)) / (1000 * 60));
+                                        remainingSeconds = Math?.floor((remainingTime % (1000 * 60)) / 1000);
+                                        hoursLeft = remainingHours + ':' + remainingMinutes + ':' + remainingSeconds;
+                                    }
+                                    return (
+                                        <TouchableOpacity
+                                            key={index}
+                                            // onPress={() => setTicketindex(index)}
                                             style={{
-                                                flexDirection: 'row',
-                                                alignItems: 'center',
-                                                justifyContent: 'space-between',
+                                                padding: 20,
+                                                backgroundColor: COLORS.white,
+                                                marginHorizontal: 20,
+                                                marginTop: 20,
+                                                elevation: 4,
+                                                // marginBottom: 200,
+                                                borderRadius: 20,
                                             }}>
-                                            <View>
-                                                <Text style={{
-                                                    color: COLORS.black,
-                                                    fontSize: 16,
+                                            <View
+                                                style={{
+                                                    flexDirection: 'row',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
                                                 }}>
-                                                    {item?.ticketTitle}
-                                                </Text>
-                                            </View>
-                                            <TouchableOpacity onPress={() => openEditModal(index, item)}>
-                                                {/* <TouchableOpacity
+                                                <View>
+                                                    <Text style={{
+                                                        color: COLORS.black,
+                                                        fontSize: 16,
+                                                    }}>
+                                                        {item?.ticketTitle}
+                                                    </Text>
+                                                </View>
+                                                <TouchableOpacity onPress={() => openEditModal(index, item)}>
+                                                    {/* <TouchableOpacity
                                                     onPress={() => openEditModal(index, item)}
                                                     style={{
                                                         backgroundColor: COLORS.light,
@@ -1637,84 +1745,95 @@ const MediatorEditEventScreen = ({ navigation, route }) => {
                                                         height: 15,
                                                     }} />
                                                 </TouchableOpacity> */}
-                                                <SVGEdit width={20} height={20} />
-                                            </TouchableOpacity>
-                                        </View>
-                                        <View style={{
-                                            flexDirection: 'row',
-                                            alignItems: 'center',
-                                        }}>
+                                                    <SVGEdit width={20} height={20} />
+                                                </TouchableOpacity>
+                                            </View>
                                             <View style={{
-                                                // paddingVertical: 10,
+                                                flexDirection: 'row',
+                                                alignItems: 'center',
                                             }}>
-                                                {item?.discountedPrice ?
-                                                    <Text style={{
-                                                        color: COLORS.green,
-                                                        fontWeight: 'bold',
+                                                <View style={{
+                                                    // paddingVertical: 10,
+                                                }}>
+                                                    {item?.discountedPrice ?
+                                                        <Text style={{
+                                                            color: COLORS.green,
+                                                            fontWeight: 'bold',
+                                                        }}>
+                                                            ${item?.discountedPrice}
+                                                        </Text>
+                                                        :
+                                                        <Text style={{
+                                                            color: COLORS.green,
+                                                            fontWeight: 'bold',
+                                                        }}>
+                                                            ${item?.pricePerTicket}
+                                                        </Text>
+                                                    }
+                                                </View>
+                                                <TouchableOpacity
+                                                    onPress={() => navigation.navigate('EventTickets')}
+                                                    style={{
+                                                        flexDirection: 'row',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        paddingHorizontal: 10,
+                                                        paddingVertical: 5
                                                     }}>
-                                                        ${item?.discountedPrice}
+                                                    <Text style={{
+                                                        color: COLORS.black,
+                                                        fontSize: 12,
+                                                        marginRight: 5,
+                                                        textDecorationLine: 'line-through',
+                                                        textDecorationStyle: 'solid',
+                                                    }}>${item?.pricePerTicket}</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                            <View>
+                                                {moment(item?.discountStartDate, 'MM/DD/YYYY').format('MMMM D, YYYY') != 'Invalid date' && moment(item?.discountendDate, 'MM/DD/YYYY').format('MMMM D, YYYY') != 'Invalid date' ?
+                                                    <Text style={{
+                                                        fontSize: 12
+                                                    }}>
+                                                        Sales start from  {moment(item?.discountStartDate, 'MM/DD/YYYY').format('MMMM D, YYYY')} to {moment(item?.discountendDate, 'MM/DD/YYYY').format('MMMM D, YYYY')}
                                                     </Text>
                                                     :
                                                     <Text style={{
-                                                        color: COLORS.green,
-                                                        fontWeight: 'bold',
+                                                        fontSize: 12
                                                     }}>
-                                                        ${item?.pricePerTicket}
+                                                        Sales not available
                                                     </Text>
                                                 }
                                             </View>
-                                            <TouchableOpacity
-                                                onPress={() => navigation.navigate('EventTickets')}
-                                                style={{
-                                                    flexDirection: 'row',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    paddingHorizontal: 10,
-                                                    paddingVertical: 5
-                                                }}>
+                                            <View style={{
+                                                paddingVertical: 2
+                                            }}>
                                                 <Text style={{
-                                                    color: COLORS.black,
-                                                    fontSize: 12,
-                                                    marginRight: 5,
-                                                    textDecorationLine: 'line-through',
-                                                    textDecorationStyle: 'solid',
-                                                }}>${item?.pricePerTicket}</Text>
-                                            </TouchableOpacity>
-                                        </View>
-                                        <View>
-                                            <Text style={{
-                                                fontSize: 12
-                                            }}>Sales start from {item?.discountStartDate} to {item?.discountendDate}</Text>
-                                        </View>
-                                        <View style={{
-                                            paddingVertical: 2
-                                        }}>
-                                            <Text style={{
-                                                fontSize: 12
-                                            }}>Access to enter the between {item?.discountstartTime}–{item?.discountendTime}. </Text>
-                                        </View>
+                                                    fontSize: 12
+                                                }}>Access to enter between {startTime ? startTime : '00'}–{endTime ? endTime : '00'}. </Text>
+                                            </View>
 
-                                        <View style={{ flexDirection: 'row', paddingTop: 10, }}>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                                <Image source={require('../../../assets/left.png')} resizeMode='contain'
-                                                    style={{
-                                                        width: 20,
-                                                        height: 20,
-                                                        tintColor: 'red'
-                                                    }} />
-                                                <View>
-                                                    <Text style={{ fontSize: 12, color: 'red' }}>{item?.totalTickets}Left</Text>
+                                            <View style={{ flexDirection: 'row', paddingTop: 10, }}>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                    <Image source={require('../../../assets/left.png')} resizeMode='contain'
+                                                        style={{
+                                                            width: 20,
+                                                            height: 20,
+                                                            tintColor: 'red'
+                                                        }} />
+                                                    <View>
+                                                        <Text style={{ fontSize: 12, color: 'red' }}>{item?.totalTickets}Left</Text>
+                                                    </View>
+                                                </View>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 10, }}>
+                                                    <Text style={{ color: COLORS.black, fontSize: 12, marginRight: 5, }}>Time Left:</Text>
+                                                    <View>
+                                                        <Text style={{ fontSize: 12, color: COLORS.black, fontWeight: 'bold' }}> {hoursLeft ? hoursLeft : 'not available'}</Text>
+                                                    </View>
                                                 </View>
                                             </View>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 10, }}>
-                                                <Text style={{ color: COLORS.black, fontSize: 12, marginRight: 5, }}>Time on:</Text>
-                                                <View>
-                                                    <Text style={{ fontSize: 12, color: COLORS.black, fontWeight: 'bold' }}>{item?.discountStartDate}</Text>
-                                                </View>
-                                            </View>
-                                        </View>
-                                    </TouchableOpacity>
-                                ))}
+                                        </TouchableOpacity>
+                                    )
+                                })}
                             </View>
                             :
                             <View style={{
@@ -1746,20 +1865,11 @@ const MediatorEditEventScreen = ({ navigation, route }) => {
                                         width={100} title={'Cancel'} color={COLORS.gray} bcolor={COLORS.light} />
                                 </View>
 
-                                {!uploading == true ?
+                                {!uploading ?
                                     <CustomeButton onpress={() => OnHandleEvents()}
                                         width={200} title={'Save Changes'} color={COLORS.black} />
                                     :
-                                    <View style={{
-                                        backgroundColor: COLORS.main,
-                                        width: 200,
-                                        height: 50,
-                                        borderRadius: 10,
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
-                                    }}>
-                                        <Text>Please wait...</Text>
-                                    </View>
+                                    <CustomeButton width={200} title={'Please wait...'} color={COLORS.black} />
                                 }
                             </View>
                         </View>
@@ -1894,7 +2004,7 @@ const MediatorEditEventScreen = ({ navigation, route }) => {
                                         <Text style={{
                                             color: COLORS.black,
                                             fontSize: 20,
-                                            fontWeight: 'bold'
+                                            fontWeight: 'bold',
                                         }}> Add Location </Text>
                                     </View>
                                 </View>
@@ -1910,7 +2020,7 @@ const MediatorEditEventScreen = ({ navigation, route }) => {
                                             // components: "country:pk",
                                             types: "establishment",
                                             radius: 30000,
-                                            location: `${region.latitude}, ${region.longitude}`
+                                            location: `${region?.latitude}, ${region?.longitude}`
                                         }}
                                         fetchDetails={true}
                                         // ref={ref => setSearchTextRef(ref)}
@@ -1960,19 +2070,20 @@ const MediatorEditEventScreen = ({ navigation, route }) => {
                                         provider={PROVIDER_GOOGLE} // remove if not using Google Maps
                                         style={styles.map}
                                         initialRegion={{
-                                            latitude: 24.860966,
-                                            longitude: 66.990501,
+                                            latitude: region?.latitude,
+                                            longitude: region?.longitude,
                                             latitudeDelta: 0.0922,
                                             longitudeDelta: 0.0421,
                                         }}
                                     >
+                                        {/* {console.log(region, pin)} */}
                                         <Marker
                                             coordinate={{
                                                 latitude: 24.860966,
                                                 longitude: 66.990501,
                                             }}
                                             // image={require('../../../assets/map.png')}
-                                            draggable={true}
+                                            draggable={false}
                                             onDragEnd={(e) => {
                                                 console.log('Drag end', e.nativeEvent.coordinate)
                                                 setPin({

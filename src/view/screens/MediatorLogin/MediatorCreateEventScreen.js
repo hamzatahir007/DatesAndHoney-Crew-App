@@ -11,7 +11,7 @@ import MapView, { Callout, Circle, Marker, PROVIDER_GOOGLE } from 'react-native-
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Picker } from '@react-native-picker/picker';
 import { useSelector } from 'react-redux';
-import { selectMediatorUser, selectUser } from '../../../../redux/reducers/Reducers';
+import { selectMediatorUser, selectPaymentCards, selectUser } from '../../../../redux/reducers/Reducers';
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import storage from '@react-native-firebase/storage';
@@ -85,11 +85,14 @@ const MediatorCreateEventScreen = ({ navigation }) => {
     const [isDiscountStartTimePickerVisible, setDiscountStartTimePickerVisibility] = useState(false);
     const [isDiscountEndTimePickerVisible, setDiscountEndTimePickerVisibility] = useState(false);
     const [TicketModaldata, setTicketModaldata] = useState([]);
-
+    const [discountedReferral, setDiscountedReferral] = useState(null);
+    const [promoterReward, setPromoterReward] = useState(null);
+    const [showPoppup, setShowPoppup] = useState(null);
+    const SelectedPaymentCards = useSelector(selectPaymentCards)
     // const [Date, setDate] = useState('');
     // const [Date, setDate] = useState('');
 
-
+    // console.log(SelectedPaymentCards);
     // console.log(pin.latitude , pin.longitude);
     // const getAddress = async (pin) => {
     //     // console.log(pin.latitude, pin.longitude);
@@ -458,7 +461,7 @@ const MediatorCreateEventScreen = ({ navigation }) => {
 
     const OnSetLocation = () => {
         // console.log(pin);
-        if (region) {
+        if (region && location) {
             // setLocation(pin)
             setLocationModalVisible(false)
         }
@@ -470,7 +473,7 @@ const MediatorCreateEventScreen = ({ navigation }) => {
 
 
     const OnHandleEvents = () => {
-        if (imageArray?.length < 1 || !name || !description || !startDate || !endDate || !startTime || !endTime || !location || !totalTicketPrice || TicketModaldata?.length < 1) {
+        if (imageArray?.length < 1 || !name || !description || !startDate || !endDate || !startTime || !endTime || !totalTicketPrice || TicketModaldata?.length < 1) {
             if (imageArray?.length < 1) {
                 // console.log('aklxjn');
                 ToastAndroid.show("Please select at least One images!", ToastAndroid.SHORT);
@@ -493,14 +496,23 @@ const MediatorCreateEventScreen = ({ navigation }) => {
             else if (!endTime) {
                 ToastAndroid.show("Please select End Time first!", ToastAndroid.SHORT);
             }
-            else if (!location) {
-                ToastAndroid.show("Please select location first!", ToastAndroid.SHORT);
-            }
+            // else if (isNaN(discountedReferral) || Number(discountedReferral) <= 100) {
+            //     ToastAndroid.show("Discounted referral must be a number and not greater than 100!!", ToastAndroid.SHORT);
+            // }
+            // else if (isNaN(promoterReward) || Number(promoterReward) <= 100) {
+            //     ToastAndroid.show("Discounted referral must be a number and not greater than 100!", ToastAndroid.SHORT);
+            // }
+            // else if (promoterReward !== 'number') {
+            //     ToastAndroid.show("Promoter reward must be a number!", ToastAndroid.SHORT);
+            // }
+            // else if (promoterReward > 100) {
+            //     ToastAndroid.show("Promoter reward must be less than or equal to 100%!", ToastAndroid.SHORT);
+            // }
             else if (!totalTicketPrice) {
                 ToastAndroid.show("Please add total TicketPrice first!", ToastAndroid.SHORT);
             }
             else if (TicketModaldata?.length < 1) {
-                ToastAndroid.show("Please add your Tickets by click on Ticket Price!", ToastAndroid.SHORT);
+                ToastAndroid.show("Please add your Tickets by click on Total Ticket Price!", ToastAndroid.SHORT);
             }
             // console.log('jzhb');
         }
@@ -513,48 +525,63 @@ const MediatorCreateEventScreen = ({ navigation }) => {
 
     const OnSubmitEvents = async () => {
         // console.log('add events here: ',Data);
-        setUploading(true)
-        const imageUrl = await uploadImage();
-        const secimageUrl = await uploadSecondImage();
-        const thirdimageUrl = await uploadThirdImage();
-        const fourthimageUrl = await uploadFourthImage();
-        const fifthimageUrl = await uploadFifthImage();
-        const sixthimageUrl = await uploadSixthImage();
-        var Data = new Object();
-        Data.Title = name;
-        Data.description = description;
-        Data.startDate = startDate;
-        Data.endDate = endDate;
-        Data.startTime = startTime;
-        Data.endTime = endTime;
-        Data.location = location;
-        Data.Address = region;
-        Data.totalTicketPrice = totalTicketPrice;
-        Data.TicketModaldata = TicketModaldata;
-        Data.owneruid = currentuser?.userDetails?.uid;
-        Data.ownerName = currentuser?.userDetails?.Name;
-        Data.owneremail = currentuser?.userDetails?.email;
-        Data.uid = Math.random().toString(16).slice(2);
-        Data.image1 = imageUrl;
-        Data.secimageUrl = secimageUrl;
-        Data.thirdimageUrl = thirdimageUrl;
-        Data.fourthimageUrl = fourthimageUrl;
-        Data.fifthimageUrl = fifthimageUrl;
-        Data.sixthimageUrl = sixthimageUrl;
-        Data.timeStamp = new Date().toString();
-        // console.log(Data);
-        // return;
-        firestore()
-            .collection('Events')
-            .doc(Data.uid)
-            .set(Data)
-            .then(() => {
-                ToastAndroid.show('Event created successfully', ToastAndroid.SHORT)
-                RefereshForm();
-                setUploading(false)
-            })
+        if (SelectedPaymentCards) {
+
+            setUploading(true)
+            const imageUrl = await uploadImage();
+            const secimageUrl = await uploadSecondImage();
+            const thirdimageUrl = await uploadThirdImage();
+            const fourthimageUrl = await uploadFourthImage();
+            const fifthimageUrl = await uploadFifthImage();
+            const sixthimageUrl = await uploadSixthImage();
+            var Data = new Object();
+            Data.Title = name;
+            Data.description = description;
+            Data.startDate = startDate;
+            Data.endDate = endDate;
+            Data.startTime = startTime;
+            Data.endTime = endTime;
+            Data.location = location;
+            Data.Address = location ? region : null;
+            Data.totalTicketPrice = totalTicketPrice;
+            Data.TicketModaldata = TicketModaldata;
+            Data.owneruid = currentuser?.userDetails?.uid;
+            Data.ownerName = currentuser?.userDetails?.Name;
+            Data.owneremail = currentuser?.userDetails?.email;
+            Data.uid = Math.random().toString(16).slice(2);
+            Data.image1 = imageUrl;
+            Data.secimageUrl = secimageUrl;
+            Data.thirdimageUrl = thirdimageUrl;
+            Data.fourthimageUrl = fourthimageUrl;
+            Data.fifthimageUrl = fifthimageUrl;
+            Data.sixthimageUrl = sixthimageUrl;
+            Data.discountedReferral = discountedReferral ? discountedReferral : null;
+            Data.promoterReward = promoterReward ? promoterReward : null;
+            Data.timeStamp = new Date().toString();
+            // console.log(Data);
+            // return;
+            firestore()
+                .collection('Events')
+                .doc(Data.uid)
+                .set(Data)
+                .then(() => {
+                    ToastAndroid.show('Event created successfully', ToastAndroid.SHORT)
+                    RefereshForm();
+                    setUploading(false)
+                })
+        }
+        else {
+            console.log('yes');
+            setShowPoppup(true)
+        }
         // // setImage(null)
 
+    }
+
+    const onAddCards = () => {
+        // console.log('hello');
+        navigation.navigate('ProfileStack', { screen: 'MediatorPaymentOptionScreen' })
+        setShowPoppup(false)
     }
 
     const uploadImage = async () => {
@@ -783,6 +810,78 @@ const MediatorCreateEventScreen = ({ navigation }) => {
         }
     }
 
+    function checkReferralValue(input) {
+        if (!isNaN(input) && Number(input) <= 100) {
+            // Valid input
+            if (!isNaN(input)) {
+                setDiscountedReferral(input)
+            }
+            else if (Number(input) <= 100) {
+                setDiscountedReferral(input)
+            }
+            // console.log('Input is a number and not greater than 100.');
+        } else {
+            setDiscountedReferral(null)
+            // Invalid input
+            ToastAndroid.show('Discount Referral must be a number and not greater than 100!', ToastAndroid.SHORT);
+        }
+    }
+    function checkRewardValue(input) {
+        if (!isNaN(input) && Number(input) <= 100) {
+            // Valid input
+            if (!isNaN(input)) {
+                setPromoterReward(input)
+            }
+            else if (Number(input) <= 100) {
+                setPromoterReward(input)
+            }
+            // console.log('Input is a number and not greater than 100.');
+        } else {
+            setPromoterReward(null)
+            // Invalid input
+            ToastAndroid.show('Promoter reward must be a number and not greater than 100!', ToastAndroid.SHORT);
+        }
+    }
+
+
+    function checkPricePerTicketValue(input) {
+        if (!isNaN(input)) {
+            // Valid input
+            setPricePerTicket(input)
+            // console.log('Input is a number and not greater than 100.');
+        } else {
+            // setPricePerTicket(null)
+            // Invalid input
+            ToastAndroid.show('Price per ticket must be a number!', ToastAndroid.SHORT);
+        }
+    }
+    function checkTotalTicketsValue(input) {
+        if (!isNaN(input)) {
+            // Valid input
+            setTotalTickets(input)
+            // console.log('Input is a number and not greater than 100.');
+        } else {
+            setTotalTickets(null)
+            // Invalid input
+            ToastAndroid.show('Total ticket must be a number!', ToastAndroid.SHORT);
+        }
+    }
+    function checkDiscountPerTicketValue(input) {
+        if (!isNaN(input) && Number(input) <= 100) {
+            // Valid input
+            if (!isNaN(input)) {
+                setDiscountPerTicket(input)
+            }
+            else if (Number(input) <= 100) {
+                setDiscountPerTicket(input)
+            }
+            // console.log('Input is a number and not greater than 100.');
+        } else {
+            setDiscountPerTicket(null)
+            // Invalid input
+            ToastAndroid.show('Discount Per Ticket must be a number and not greater than 100!', ToastAndroid.SHORT);
+        }
+    }
 
 
     return (
@@ -1108,6 +1207,7 @@ const MediatorCreateEventScreen = ({ navigation }) => {
                             <View style={{ marginTop: 10, width: width / 2.2 }}>
                                 <Text style={{ color: COLORS.black }}> Start Date </Text>
                                 <View style={{
+                                    marginTop: 5,
                                     height: 45,
                                     backgroundColor: COLORS.white,
                                     borderRadius: 5,
@@ -1150,6 +1250,7 @@ const MediatorCreateEventScreen = ({ navigation }) => {
                             <View style={{ marginTop: 10, width: width / 2.2 }}>
                                 <Text style={{ color: COLORS.black }}> End Date </Text>
                                 <View style={{
+                                    marginTop: 5,
                                     height: 45,
                                     backgroundColor: COLORS.white,
                                     borderRadius: 5,
@@ -1195,6 +1296,7 @@ const MediatorCreateEventScreen = ({ navigation }) => {
                             <View style={{ marginTop: 10, width: width / 2.2, }}>
                                 <Text style={{ color: COLORS.black }}> Start Time </Text>
                                 <View style={{
+                                    marginTop: 5,
                                     height: 45,
                                     backgroundColor: COLORS.white,
                                     borderRadius: 5,
@@ -1255,6 +1357,7 @@ const MediatorCreateEventScreen = ({ navigation }) => {
                             <View style={{ marginTop: 10, width: width / 2.2 }}>
                                 <Text style={{ color: COLORS.black }}> End Time </Text>
                                 <View style={{
+                                    marginTop: 5,
                                     height: 45,
                                     backgroundColor: COLORS.white,
                                     borderRadius: 5,
@@ -1279,13 +1382,6 @@ const MediatorCreateEventScreen = ({ navigation }) => {
                                         // onFocus={() => { setDateOfBirthError(false) }}
                                         onPressIn={showEndTimePicker}
                                     />
-                                    {/* <TextInput
-                                        value={endDate}
-                                        placeholder={'End Time'}
-                                        onChangeText={endDate => setEndDate(endDate)
-                                        }
-                                        style={styles.TextInput}
-                                    /> */}
                                     <Image source={require('../../../assets/clock.png')} resizeMode='contain' style={{
                                         tintColor: COLORS.black,
                                         width: 15,
@@ -1298,7 +1394,13 @@ const MediatorCreateEventScreen = ({ navigation }) => {
                             alignItems: 'center',
                         }}>
                             <View style={{ marginTop: 10 }}>
-                                <Text style={{ color: COLORS.black }}> Location </Text>
+                                <View style={{
+                                    flexDirection: 'row',
+                                    alignItems: 'center'
+                                }}>
+                                    <Text style={{ color: COLORS.black }}>Location </Text>
+                                    <Text style={{ color: COLORS.gray, fontSize: 12, }}> (Optional) </Text>
+                                </View>
                                 <View style={styles.NumberInput}>
                                     <TextInput
                                         value={location}
@@ -1324,12 +1426,12 @@ const MediatorCreateEventScreen = ({ navigation }) => {
 
                         <View style={{ alignItems: 'center' }}>
                             <View style={{ marginTop: 10 }}>
-                                <Text style={{ color: COLORS.black }}> Ticket Price </Text>
+                                <Text style={{ color: COLORS.black }}> Total Ticket Price </Text>
                                 <View style={styles.NumberInput}>
                                     <TextInput
                                         value={totalTicketPrice}
                                         placeholderTextColor={COLORS.gray}
-                                        placeholder={'Ticket Price'}
+                                        placeholder={'00 to 100'}
                                         onChangeText={totalTicketPrice => setTotalTicketPrice(totalTicketPrice)
                                         }
                                         selectionColor={COLORS.black}
@@ -1352,114 +1454,200 @@ const MediatorCreateEventScreen = ({ navigation }) => {
                             </View>
                         </View>
 
+                        <View style={{ alignItems: 'center' }}>
+                            <View style={{ marginTop: 10 }}>
+                                <View style={{
+                                    flexDirection: 'row',
+                                    alignItems: 'center'
+                                }}>
+                                    <Text style={{ color: COLORS.black }}>Discounted Referral </Text>
+                                    <Text style={{ color: COLORS.gray, fontSize: 12, }}> (Optional) </Text>
+                                </View>
+                                <View style={styles.NumberInput}>
+                                    <TextInput
+                                        value={discountedReferral}
+                                        placeholderTextColor={COLORS.gray}
+                                        placeholder={'enter discounted referral '}
+                                        onChangeText={discountedReferral => checkReferralValue(discountedReferral)
+                                        }
+                                        selectionColor={COLORS.black}
+                                        underlineColor={COLORS.white}
+                                        activeUnderlineColor={COLORS.white}
+                                        style={styles.TextInput}
+                                        editable={true}
+                                    />
+                                    <View><Text>%</Text></View>
+                                </View>
+                            </View>
+                        </View>
+
+                        <View style={{ alignItems: 'center' }}>
+                            <View style={{ marginTop: 10 }}>
+                                <View style={{
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                }}>
+                                    <Text style={{ color: COLORS.black }}>Promoter's Reward </Text>
+                                    <Text style={{ color: COLORS.gray, fontSize: 12, }}> (Optional) </Text>
+                                </View>
+                                <View style={styles.NumberInput}>
+                                    <TextInput
+                                        value={promoterReward}
+                                        placeholderTextColor={COLORS.gray}
+                                        placeholder={'enter promoter reward'}
+                                        onChangeText={promoterReward => checkRewardValue(promoterReward)
+                                        }
+                                        selectionColor={COLORS.black}
+                                        underlineColor={COLORS.white}
+                                        activeUnderlineColor={COLORS.white}
+                                        style={styles.TextInput}
+                                        editable={true}
+                                    />
+                                    <View><Text>%</Text></View>
+                                </View>
+                            </View>
+                        </View>
+
                         {!TicketModaldata?.length == 0 ?
                             <View>
-                                {TicketModaldata.map((item, index) => (
-                                    <TouchableOpacity
-                                        key={index}
-                                        // onPress={() => setTicketindex(index)}
-                                        style={{
-                                            padding: 20,
-                                            backgroundColor: COLORS.white,
-                                            marginHorizontal: 20,
-                                            marginTop: 20,
-                                            elevation: 4,
-                                            // marginBottom: 200,
-                                            borderRadius: 20,
-                                        }}>
-                                        <View
+                                {TicketModaldata.map((item, index) => {
+                                    var isoDate;
+                                    var currentTime;
+                                    var givenDateTime;
+                                    var remainingTime;
+                                    var remainingHours;
+                                    var remainingMinutes;
+                                    var remainingSeconds;
+                                    var hoursLeft;
+                                    if (item?.discountendDate && item?.discountendTime) {
+                                        const [month, day, year] = item?.discountendDate?.split('/');
+                                        const [time, period] = item?.discountendTime?.split(/:| /);
+                                        isoDate = new Date(`${year}-${month}-${day}T${period.toLowerCase() === 'pm' ? parseInt(time, 10) + 12 : time}:00:00Z`).toISOString();
+                                        currentTime = new Date();
+                                        givenDateTime = new Date(isoDate);
+                                        remainingTime = givenDateTime - currentTime;
+                                        remainingHours = Math?.floor(remainingTime / (1000 * 60 * 60));
+                                        remainingMinutes = Math?.floor((remainingTime % (1000 * 60 * 60)) / (1000 * 60));
+                                        remainingSeconds = Math?.floor((remainingTime % (1000 * 60)) / 1000);
+                                        hoursLeft = remainingHours + ':' + remainingMinutes + ':' + remainingSeconds;
+                                    }
+                                    return (
+                                        <TouchableOpacity
+                                            key={index}
+                                            // onPress={() => setTicketindex(index)}
                                             style={{
-                                                flexDirection: 'row',
-                                                alignItems: 'center',
-                                                justifyContent: 'space-between',
+                                                padding: 20,
+                                                backgroundColor: COLORS.white,
+                                                marginHorizontal: 20,
+                                                marginTop: 20,
+                                                elevation: 4,
+                                                // marginBottom: 200,
+                                                borderRadius: 20,
                                             }}>
-                                            <View>
-                                                <Text style={{
-                                                    color: COLORS.black,
-                                                    fontSize: 16,
-                                                }}>
-                                                    {item.ticketTitle}
-                                                </Text>
-                                            </View>
-                                            <TouchableOpacity onPress={() => EditTicket(index, item)}>
-                                                <SVGEdit width={20} height={20} />
-                                            </TouchableOpacity>
-                                        </View>
-                                        <View style={{
-                                            flexDirection: 'row',
-                                            alignItems: 'center',
-                                        }}>
-                                            <View style={{
-                                                // paddingVertical: 10,
-                                            }}>
-                                                {item.discountedPrice ?
-                                                    <Text style={{
-                                                        color: COLORS.green,
-                                                        fontWeight: 'bold',
-                                                    }}>
-                                                        ${item.discountedPrice}
-                                                    </Text>
-                                                    :
-                                                    <Text style={{
-                                                        color: COLORS.green,
-                                                        fontWeight: 'bold',
-                                                    }}>
-                                                        ${item.pricePerTicket}
-                                                    </Text>
-                                                }
-                                            </View>
-                                            <TouchableOpacity
-                                                onPress={() => navigation.navigate('EventTickets')}
+                                            <View
                                                 style={{
                                                     flexDirection: 'row',
                                                     alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    paddingHorizontal: 10,
-                                                    paddingVertical: 5
+                                                    justifyContent: 'space-between',
                                                 }}>
-                                                <Text style={{
-                                                    color: COLORS.black,
-                                                    fontSize: 12,
-                                                    marginRight: 5,
-                                                    textDecorationLine: 'line-through',
-                                                    textDecorationStyle: 'solid',
-                                                }}>${item.pricePerTicket}</Text>
-                                            </TouchableOpacity>
-                                        </View>
-                                        <View>
-                                            <Text style={{
-                                                fontSize: 12
-                                            }}>Sales start from {item.discountStartDate} to {item.discountendDate}</Text>
-                                        </View>
-                                        <View style={{
-                                            paddingVertical: 2
-                                        }}>
-                                            <Text style={{
-                                                fontSize: 12
-                                            }}>Access to enter the between {item.discountstartTime}–{item.discountendTime}. </Text>
-                                        </View>
-
-                                        <View style={{ flexDirection: 'row', paddingTop: 10, }}>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                                <Image source={require('../../../assets/left.png')} resizeMode='contain'
+                                                <View>
+                                                    <Text style={{
+                                                        color: COLORS.black,
+                                                        fontSize: 16,
+                                                    }}>
+                                                        {item.ticketTitle}
+                                                    </Text>
+                                                </View>
+                                                <TouchableOpacity onPress={() => EditTicket(index, item)}>
+                                                    <SVGEdit width={20} height={20} />
+                                                </TouchableOpacity>
+                                            </View>
+                                            <View style={{
+                                                flexDirection: 'row',
+                                                alignItems: 'center',
+                                            }}>
+                                                <View style={{
+                                                    // paddingVertical: 10,
+                                                }}>
+                                                    {item.discountedPrice ?
+                                                        <Text style={{
+                                                            color: COLORS.green,
+                                                            fontWeight: 'bold',
+                                                        }}>
+                                                            ${item.discountedPrice}
+                                                        </Text>
+                                                        :
+                                                        <Text style={{
+                                                            color: COLORS.green,
+                                                            fontWeight: 'bold',
+                                                        }}>
+                                                            ${item.pricePerTicket}
+                                                        </Text>
+                                                    }
+                                                </View>
+                                                <TouchableOpacity
+                                                    onPress={() => navigation.navigate('EventTickets')}
                                                     style={{
-                                                        width: 20,
-                                                        height: 20,
-                                                        tintColor: 'red'
-                                                    }} />
-                                                <View>
-                                                    <Text style={{ fontSize: 12, color: 'red' }}>{item.totalTickets}Left</Text>
+                                                        flexDirection: 'row',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        paddingHorizontal: 10,
+                                                        paddingVertical: 5
+                                                    }}>
+                                                    <Text style={{
+                                                        color: COLORS.black,
+                                                        fontSize: 12,
+                                                        marginRight: 5,
+                                                        textDecorationLine: 'line-through',
+                                                        textDecorationStyle: 'solid',
+                                                    }}>${item.pricePerTicket}</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                            <View>
+                                                {moment(item?.discountStartDate, 'MM/DD/YYYY').format('MMMM D, YYYY') !='Invalid date' && moment(item?.discountendDate, 'MM/DD/YYYY').format('MMMM D, YYYY') !='Invalid date' ?
+                                                    <Text style={{
+                                                        fontSize: 12
+                                                    }}>
+                                                        Sales start from  {moment(item?.discountStartDate, 'MM/DD/YYYY').format('MMMM D, YYYY')} to {moment(item?.discountendDate, 'MM/DD/YYYY').format('MMMM D, YYYY')}
+                                                    </Text>
+                                                    :
+                                                    <Text style={{
+                                                        fontSize: 12
+                                                    }}>
+                                                        Sales not available
+                                                    </Text>
+                                                }
+                                            </View>
+                                            <View style={{
+                                                paddingVertical: 2
+                                            }}>
+                                                <Text style={{
+                                                    fontSize: 12
+                                                }}>Access to enter between {startTime ? startTime : '00'}–{endTime ? endTime : '00'}. </Text>
+                                            </View>
+
+                                            <View style={{ flexDirection: 'row', paddingTop: 10, }}>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                    <Image source={require('../../../assets/left.png')} resizeMode='contain'
+                                                        style={{
+                                                            width: 20,
+                                                            height: 20,
+                                                            tintColor: 'red'
+                                                        }} />
+                                                    <View>
+                                                        <Text style={{ fontSize: 12, color: 'red' }}>{item.totalTickets}Left</Text>
+                                                    </View>
+                                                </View>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 10, }}>
+                                                    <Text style={{ color: COLORS.black, fontSize: 12, marginRight: 5, }}>Time Left:</Text>
+                                                    <View>
+                                                        <Text style={{ fontSize: 12, color: COLORS.black, fontWeight: 'bold' }}> {hoursLeft ? hoursLeft : 'not available'}</Text>
+                                                    </View>
                                                 </View>
                                             </View>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 10, }}>
-                                                <Text style={{ color: COLORS.black, fontSize: 12, marginRight: 5, }}>Time on:</Text>
-                                                <View>
-                                                    <Text style={{ fontSize: 12, color: COLORS.black, fontWeight: 'bold' }}>{item.discountStartDate}</Text>
-                                                </View>
-                                            </View>
-                                        </View>
-                                    </TouchableOpacity>
-                                ))}
+                                        </TouchableOpacity>
+                                    )
+                                })}
                             </View>
                             :
                             <View style={{
@@ -1606,7 +1794,7 @@ const MediatorCreateEventScreen = ({ navigation }) => {
                                             // components: "country:pk",
                                             types: "establishment",
                                             radius: 30000,
-                                            location: `${region.latitude}, ${region.longitude}`
+                                            location: `${region?.latitude}, ${region?.longitude}`
                                         }}
                                         fetchDetails={true}
                                         // ref={ref => setSearchTextRef(ref)}
@@ -1656,8 +1844,8 @@ const MediatorCreateEventScreen = ({ navigation }) => {
                                         provider={PROVIDER_GOOGLE} // remove if not using Google Maps
                                         style={styles.map}
                                         initialRegion={{
-                                            latitude: region.latitude,
-                                            longitude: region.longitude,
+                                            latitude: region?.latitude,
+                                            longitude: region?.longitude,
                                             latitudeDelta: 0.0922,
                                             longitudeDelta: 0.0421,
                                         }}
@@ -1789,13 +1977,16 @@ const MediatorCreateEventScreen = ({ navigation }) => {
                                                             value={pricePerTicket}
                                                             placeholder={'price'}
                                                             placeholderTextColor={COLORS.gray}
-                                                            onChangeText={pricePerTicket => setPricePerTicket(pricePerTicket)
+                                                            onChangeText={pricePerTicket => checkPricePerTicketValue(pricePerTicket)
                                                             }
                                                             selectionColor={COLORS.black}
                                                             underlineColor={COLORS.white}
                                                             activeUnderlineColor={COLORS.white}
                                                             style={styles.TextInput}
                                                         />
+                                                        <Text>
+                                                            $
+                                                        </Text>
                                                     </View>
                                                 </View>
                                             </View>
@@ -1807,7 +1998,7 @@ const MediatorCreateEventScreen = ({ navigation }) => {
                                                             value={totalTickets}
                                                             placeholder={'total tickets'}
                                                             placeholderTextColor={COLORS.gray}
-                                                            onChangeText={totalTickets => setTotalTickets(totalTickets)
+                                                            onChangeText={totalTickets => checkTotalTicketsValue(totalTickets)
                                                             }
                                                             selectionColor={COLORS.black}
                                                             underlineColor={COLORS.white}
@@ -1825,13 +2016,16 @@ const MediatorCreateEventScreen = ({ navigation }) => {
                                                             value={discountPerTicket}
                                                             placeholder={'discount'}
                                                             placeholderTextColor={COLORS.gray}
-                                                            onChangeText={discountPerTicket => setDiscountPerTicket(discountPerTicket)
+                                                            onChangeText={discountPerTicket => checkDiscountPerTicketValue(discountPerTicket)
                                                             }
                                                             selectionColor={COLORS.black}
                                                             underlineColor={COLORS.white}
                                                             activeUnderlineColor={COLORS.white}
                                                             style={styles.TextInput}
                                                         />
+                                                        <Text>
+                                                            %
+                                                        </Text>
                                                     </View>
                                                 </View>
                                             </View>
@@ -2008,6 +2202,96 @@ const MediatorCreateEventScreen = ({ navigation }) => {
                 </Modal>
 
             </View >
+
+
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={showPoppup}
+                onRequestClose={() => {
+                    setShowPoppup(!showPoppup);
+                }}>
+                <View style={{
+                    flex: 1,
+                    backgroundColor: COLORS.gray2,
+                    opacity: 0.9,
+                    height: height,
+                    width: width,
+                    justifyContent: 'center'
+                }}>
+                    <View style={{
+                        margin: 20,
+                        backgroundColor: 'white',
+                        borderRadius: 20,
+                        padding: 25,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        shadowColor: '#000',
+                        shadowOffset: {
+                            width: 0,
+                            height: 2,
+                        },
+                        shadowOpacity: 0.25,
+                        shadowRadius: 4,
+                        elevation: 5,
+                    }}>
+                        <Text style={{
+                            marginBottom: 10,
+                            color: COLORS.black,
+                            fontWeight: 'bold'
+                        }}>Payment Card Details</Text>
+                        <Text style={{
+                            marginBottom: 10,
+                            textAlign: 'center',
+                            fontSize: 12,
+                        }}>
+                            Your payment method is not attached. Please add a payment method first, and then create your event.
+                        </Text>
+                        <View style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                        }}>
+                            <TouchableOpacity
+                                onPress={() => setShowPoppup(false)}
+                                style={{
+                                    // borderColor: COLORS.black,
+                                    width: '45%',
+                                    borderRadius: 10,
+                                    marginHorizontal: 5,
+                                    paddingVertical: 10,
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    backgroundColor: COLORS.light
+                                }}>
+                                <Text style={{
+                                    color: COLORS.black,
+                                }}>
+                                    Cancel
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={() => onAddCards()}
+                                style={{
+                                    // borderColor: COLORS.black,
+                                    width: '45%',
+                                    borderRadius: 10,
+                                    marginHorizontal: 5,
+                                    paddingVertical: 10,
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    backgroundColor: COLORS.main
+                                }}>
+                                <Text style={{
+                                    color: COLORS.black,
+                                }}>
+                                    Add Card
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView >
     )
 }
@@ -2028,6 +2312,7 @@ const styles = StyleSheet.create({
         // backgroundColor:COLORS.black
     },
     NumberInput: {
+        marginTop: 5,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',

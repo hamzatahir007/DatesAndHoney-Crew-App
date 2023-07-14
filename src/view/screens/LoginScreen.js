@@ -143,11 +143,11 @@ const LoginScreen = ({ navigation }) => {
                         <CustomeButton width={width / 1.1} color={COLORS.white} bcolor={COLORS.black} image={require('../../assets/apple.png')} title={'Continue with Apple'} />
                     </View>
 
-                    <View style={{
+                    {/* <View style={{
                         paddingTop: 15,
                     }}>
                         <CustomeButton width={width / 1.1} bcolor={COLORS.blue} color={COLORS.white} image={require('../../assets/facebook.png')} title={'Continue with Facebook'} />
-                    </View>
+                    </View> */}
 
                     <View style={{
                         paddingTop: 15,

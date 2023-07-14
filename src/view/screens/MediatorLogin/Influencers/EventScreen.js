@@ -8,57 +8,140 @@ import firestore from '@react-native-firebase/firestore';
 import Share2 from '../../../../assets/share.svg';
 import Share from 'react-native-share';
 import Clipboard from '@react-native-clipboard/clipboard';
+import { selectMediatorUser } from '../../../../../redux/reducers/Reducers';
+import { useSelector } from 'react-redux';
+import moment from 'moment';
 
 const width = Dimensions.get('window').width;
 const height = Dimensions.get('window').height;
 
 
 const EventScreen = ({ navigation }) => {
+    const mediator = useSelector(selectMediatorUser);
+
     const [btnindex, setBtnindex] = useState(null);
     const [allEvents, setAllEvents] = useState(null);
     const [tempEvent, setTempEvent] = useState(null);
     const [tempLoading, setTempLoading] = useState(false)
     const [showPoppup, setShowPoppup] = useState(false);
+    const [showPoppupLoader, setShowPoppupLoader] = useState(false);
     const [autoCode, setAutoCode] = useState(null);
+    const [allUser, setAllUser] = useState(null);
+    const [allAffiliateCode, setAllAffiliateCode] = useState(null);
 
+    const fetchallUser = async () => {
+        await firestore()
+            .collection('Users')
+            .onSnapshot(querySnapshot => {
+                const users = [];
+                querySnapshot.forEach((documentSnapshot) => {
+                    const data = documentSnapshot.data().userDetails;
+                    users.push(data);
+                })
+                // export users
+                setAllUser(users)
+            })
+    }
 
     const fetchAllEvents = async () => {
         setTempLoading(true)
         await firestore()
             .collection('Events')
+            .orderBy('timeStamp', 'desc')
             .onSnapshot(querySnapshot => {
                 const data = [];
                 querySnapshot.forEach((documentSnapshot) => {
-                    data.push(documentSnapshot.data());
+                    // console.log(documentSnapshot.data().promoterReward);
+                    if (!documentSnapshot.data().promoterReward == null || !documentSnapshot.data().promoterReward == '') {
+                        data.push(documentSnapshot.data());
+                    }
                 });
-                data.sort(function (a, b) {
-                    return new Date(b?.timeStamp?.toDate().toDateString() + " " + b?.timeStamp?.toDate().toTimeString()) - new Date(a?.timeStamp?.toDate().toDateString() + " " + a?.timeStamp?.toDate().toTimeString());
-                });
-
+                // data?.sort(function (a, b) {
+                //     return new Date(b?.timeStamp?.toDate().toDateString() + " " + b?.timeStamp?.toDate().toTimeString()) - new Date(a?.timeStamp?.toDate().toDateString() + " " + a?.timeStamp?.toDate().toTimeString());
+                // });
                 setAllEvents(data)
                 setTempLoading(false)
             });
     }
     const GenCode = () => {
-        setAutoCode(Math.random().toString(16).slice(2))
+        // setAutoCode(Math.random().toString(16).slice(2))
     }
     const CopyLink = (autoCode) => {
-        Clipboard.setString(autoCode);
+        Clipboard.setString('Event: ' + tempEvent?.location ? tempEvent?.location : 'Location not confirmed' + ', ' + 'Promo Code: ' + autoCode,);
         setShowPoppup(false)
         ToastAndroid.show("Link coped!", ToastAndroid.SHORT);
     }
-    const GetCode = (item) => {
-        // console.log(item);
-        setTempEvent(item)
+    const generateUniqueCode = (influencerName) => {
+        const timestamp = Date.now().toString(36).substring(2, 5); // Generate a timestamp-based string
+        const randomChars = Math.random().toString(36).substring(2, 3); // Generate a random string
+        const code = influencerName.substring(0, 3).toUpperCase() + timestamp + randomChars; // Combine influencer initials, timestamp, and random string
+        return code;
+    }
+
+
+    const GetCode = async (item) => {
         setShowPoppup(true)
-        GenCode()
+        setShowPoppupLoader(true)
+        let id = Math.random().toString(16).slice(2);
+        const existingVipCodes = allUser?.filter((item) => item?.uid != mediator?.userDetails?.uid && item?.VipCode)
+            .map((item) => item?.VipCode);
+        let uniqueCode = generateUniqueCode(mediator?.userDetails?.Name);
+        while (existingVipCodes.includes(uniqueCode)) {
+            uniqueCode = generateUniqueCode(mediator?.userDetails?.Name);
+        }
+        if (uniqueCode) {
+            try {
+                const querySnapshot = await firestore()
+                    .collection('AffiliateCode')
+                    .where('VipCode.Eventid', '==', item?.uid)
+                    .where('VipCode.PromoterId', '==', mediator?.userDetails?.VipCode)
+                    .get()
+                if (querySnapshot.empty) {
+                    const id = firestore().collection('AffiliateCode').doc().id;
+                    const docRef = firestore().collection('AffiliateCode').doc(id);
+
+                    const newData = {
+                        VipCode: {
+                            Eventid: item?.uid,
+                            PromoterId: mediator?.userDetails?.VipCode,
+                            ExpireDate: item?.startDate,
+                            VipCode: uniqueCode,
+                            uid: id,
+                        },
+                    };
+
+                    await docRef.set(newData);
+                    console.log('New document created:', id);
+                    setAutoCode(uniqueCode)
+                    setShowPoppupLoader(false)
+                }
+                else {
+                    const docRef = querySnapshot.docs[0].ref;
+
+                    await docRef.update({
+                        'VipCode.ExpireDate': item?.startDate,
+                        'VipCode.VipCode': uniqueCode,
+                    });
+                    console.log('Document updated successfully:', docRef.id);
+                    setAutoCode(uniqueCode)
+                    setShowPoppupLoader(false)
+                }
+            }
+            catch (error) {
+                setShowPoppupLoader(false)
+                ToastAndroid.show('Error fetching documents:', error, ToastAndroid.SHORT);
+            }
+        }
+        setTempEvent(item)
     }
     const shareCode = async (autoCode) => {
-        // console.log(tempEvent.Title , autoCode);
+        // console.log(`Event: ${tempEvent.location ? tempEvent.location : `Location not confirmed` }, Promo Code: ${autoCode}`);
         // return
         const shareOptions = {
+            title: 'Referal Code: ',
+
             // title: 'Promo Code: ' + autoCode,
-            message: 'Event: ' + tempEvent.Title + ', ' + 'Promo Code: ' + autoCode,  //string
+            message: `Event: ${tempEvent.location ? tempEvent.location : `Location not confirmed` }, Promo Code: ${autoCode}`,  //string
         };
 
         // return
@@ -78,7 +161,7 @@ const EventScreen = ({ navigation }) => {
 
     useEffect(() => {
         fetchAllEvents();
-
+        fetchallUser();
         // allEvents.map((item) => {
         //     console.log(item.image1);
         // })
@@ -110,7 +193,7 @@ const EventScreen = ({ navigation }) => {
                                     textAlign: 'center',
                                     fontSize: 12,
                                     color: COLORS.gray,
-                                }}>Promote Events to earn 10% of ticket sales on tickets you sell, and your Promo code will also give your followers discounts to event.</Text>
+                                }}>Promote Events to earn some% of ticket sales on tickets you sell, and your Promo code will also give your followers discounts to event.</Text>
                             </View>
                             <View>
                                 <Text style={{
@@ -195,15 +278,16 @@ const EventScreen = ({ navigation }) => {
                                                 }}>
                                                     <View style={{
                                                         flexDirection: 'row',
-                                                        width: '70%',
+                                                        width: width / 1.6,
+                                                        alignItems: 'center',
                                                         // backgroundColor:COLORS.black
                                                     }}>
                                                         <View style={{
-                                                            marginRight: 10,
+                                                            marginRight: 5,
                                                         }}>
-                                                            <Image source={require('../../../../assets/location.png')} style={{
-                                                                borderTopRightRadius: 20,
-                                                                borderTopLeftRadius: 20,
+                                                            <Image source={require('../../../../assets/location.png')} resizeMode='contain' style={{
+                                                                width: 15,
+                                                                height: 15
                                                             }} />
                                                         </View>
                                                         <View style={{
@@ -214,7 +298,7 @@ const EventScreen = ({ navigation }) => {
                                                             <Text style={{
                                                                 color: COLORS.black,
                                                                 fontSize: 12
-                                                            }}>{item?.location}</Text>
+                                                            }}>{item?.location ? item?.location : 'Location not confirmed'}</Text>
                                                         </View>
                                                     </View>
                                                     <View style={{
@@ -231,7 +315,7 @@ const EventScreen = ({ navigation }) => {
                                                                 justifyContent: 'center',
                                                                 borderRadius: 5,
                                                             }}>
-                                                            <Text style={{ fontSize: 12, color: COLORS.black }}>Get Code </Text>
+                                                            <Text style={{ fontSize: 12, color: COLORS.black }}>Get Code</Text>
                                                         </TouchableOpacity>
                                                     </View>
                                                 </View>
@@ -295,12 +379,13 @@ const EventScreen = ({ navigation }) => {
                             shadowOpacity: 0.25,
                             shadowRadius: 4,
                             elevation: 5,
+                            paddingVertical: 20,
                         }}>
                             <View>
                                 <Text style={{
-                                    marginTop: 20,
                                     marginVertical: 10,
                                     color: COLORS.dark,
+                                    fontSize: 13,
                                     // fontWeight: 'bold'
                                     // textAlign: 'center',
                                 }}>Your event promotion code is</Text>
@@ -309,17 +394,26 @@ const EventScreen = ({ navigation }) => {
                                 // backgroundColor: COLORS.main,
                                 // width: '50%'
                             }}>
-                                <Text style={{
-                                    paddingTop: 10,
-                                    paddingBottom: 20,
-                                    // textAlign: 'center',
-                                    color: COLORS.gray,
-                                    fontWeight: 'bold',
-                                    color: COLORS.black,
-                                    fontSize: 16
-                                }}>
-                                    {autoCode}
-                                </Text>
+                                {showPoppupLoader ?
+                                    <View style={{
+                                        paddingTop: 10,
+                                        paddingBottom: 20,
+                                    }}>
+                                        <ActivityIndicator size={'small'} color={COLORS.main} />
+                                    </View>
+                                    :
+                                    <Text style={{
+                                        paddingTop: 10,
+                                        paddingBottom: 20,
+                                        // textAlign: 'center',
+                                        color: COLORS.gray,
+                                        fontWeight: 'bold',
+                                        color: COLORS.black,
+                                        fontSize: 16
+                                    }}>
+                                        {autoCode ? autoCode : 'Network error please try again..'}
+                                    </Text>
+                                }
                             </View>
                             <View style={{
                                 // flex:1,
@@ -328,7 +422,7 @@ const EventScreen = ({ navigation }) => {
                                 justifyContent: 'space-between',
                                 flexDirection: 'row',
                             }}>
-                                <TouchableOpacity
+                                {/* <TouchableOpacity
                                     onPress={() => GenCode()}
                                     style={{
                                         backgroundColor: COLORS.light,
@@ -346,7 +440,7 @@ const EventScreen = ({ navigation }) => {
                                     }}>
                                         Change Code
                                     </Text>
-                                </TouchableOpacity>
+                                </TouchableOpacity> */}
                                 <TouchableOpacity
                                     onPress={() => CopyLink(autoCode)}
                                     style={{
@@ -365,28 +459,29 @@ const EventScreen = ({ navigation }) => {
                                         Copy Link
                                     </Text>
                                 </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => shareCode(autoCode)}
+                                    style={{
+                                        width: '48%',
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        backgroundColor: COLORS.light,
+                                        borderRadius: 10,
+                                        borderWidth: 1,
+                                        borderColor: COLORS.bluedark,
+                                        paddingVertical: 10,
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                    }}>
+                                    <Share2 width={20} height={20} />
+                                    <Text style={{
+                                        color: COLORS.bluedark,
+                                        // paddingLeft: 5
+                                    }}>
+                                        Share
+                                    </Text>
+                                </TouchableOpacity>
                             </View>
-                            <TouchableOpacity
-                                onPress={() => shareCode(autoCode)}
-                                style={{
-                                    flexDirection: 'row',
-                                    alignItems: 'center',
-                                    // width: '48%',
-                                    // backgroundColor: COLORS.main,
-                                    borderRadius: 10,
-                                    // borderWidth: 1,
-                                    // borderColor: COLORS.main,
-                                    paddingVertical: 20,
-                                    justifyContent: 'center',
-                                }}>
-                                <Share2 width={20} height={20} />
-                                <Text style={{
-                                    color: COLORS.bluedark,
-                                    paddingLeft: 5
-                                }}>
-                                    Share
-                                </Text>
-                            </TouchableOpacity>
                         </View>
                     </View>
                 </Modal>

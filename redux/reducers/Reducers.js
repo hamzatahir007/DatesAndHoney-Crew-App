@@ -17,6 +17,7 @@ export const userSlice = createSlice({
     ADD_ITEM: 'ADD_ITEM',
     REMOVE_ITEM: 'REMOVE_ITEM',
     cart: 'cart',
+    paymentCards: "paymentCards",
     initialState: {
         user: null,
         mediatoruser: null,
@@ -34,6 +35,7 @@ export const userSlice = createSlice({
         itemsInCart: [],
         quantity: 0,
         totalCount: 0,
+        paymentCards: null,
     },
     reducers: {
         login: (state, action) => {
@@ -150,6 +152,13 @@ export const userSlice = createSlice({
             state.paymentCardDetails = action.payload;
         },
 
+        PaymentCards: (state, action) => {
+            // console.log(state.paymentCards, " : New PaymentCards");
+
+            state.paymentCards = action.payload;
+        },
+
+
         logout: (state) => {
             console.log(state.user, " : Delete user");
 
@@ -162,7 +171,7 @@ export const userSlice = createSlice({
     },
 });
 
-export const { login, mediatorLogin, ticketsAddtoCard, status, packages, Buypackages, logout, chatuser, events, addToCart, removeFromCart, incrementQty, decrementQty, PaymentMethod, PaymentCardDetails, PorposalCategory } = userSlice.actions;
+export const { login, mediatorLogin, ticketsAddtoCard, status, packages, Buypackages, logout, chatuser, events, addToCart, removeFromCart, incrementQty, decrementQty, PaymentMethod, PaymentCardDetails, PorposalCategor, PaymentCards } = userSlice.actions;
 
 export const selectUser = (state) => state.user.user;
 export const selectStatus = (state) => state.user.status;
@@ -176,7 +185,7 @@ export const selectTicketsAddToCard = (state) => state.user.ticketAddtoCard;
 export const selectPaymentMethod = (state) => state.user.paymentMethod;
 export const selectPaymentCardDetails = (state) => state.user.paymentCardDetails;
 export const selectPorposalCategory = (state) => state.user.porposalCat;
-
+export const selectPaymentCards = (state) => state.user.paymentCards;
 
 export default userSlice.reducer;
 // import { ADD_ITEM, REMOVE_ITEM } from "./ActionTypes";

@@ -2,12 +2,13 @@ import { Dimensions, Image, SafeAreaView, ScrollView, StyleSheet, Text, Touchabl
 import React, { useState } from 'react'
 import COLORS from '../../../consts/Colors';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
-import { useSelector } from 'react-redux';
-import { selectMediatorUser } from '../../../../redux/reducers/Reducers';
+import { useDispatch, useSelector } from 'react-redux';
+import { PaymentCards, selectMediatorUser } from '../../../../redux/reducers/Reducers';
 import { useEffect } from 'react';
 import firestore from '@react-native-firebase/firestore';
+import messaging from '@react-native-firebase/messaging';
 
-const { width , height} = Dimensions.get('window')
+const { width, height } = Dimensions.get('window')
 
 const Eventdata = [
     {
@@ -40,7 +41,41 @@ const MediatorDashboardScreen = ({ navigation }) => {
     const [category, setCategory] = useState()
     const [foods, setFoods] = useState()
     const [loading, setLoading] = useState(false);
+    const dispatch = useDispatch();
 
+    const GetFcmToken = () => {
+        //get device token
+        messaging()
+            .hasPermission()
+            .then(enabled => {
+                if (enabled) {
+                    messaging()
+                        .getToken()
+                        .then(fcmToken => {
+                            if (fcmToken) {
+                                // console.log(fcmToken);
+                                firestore()
+                                    .collection('token')
+                                    .doc(currentuser?.userDetails?.uid)
+                                    .set({
+                                        token: fcmToken,
+                                        create_date: new Date(),
+                                    })
+                                    .then(() => {
+                                        console.log('token succssfully saved');
+                                    })
+                                    .catch(error => {
+                                        console.log(error);
+                                    });
+                            } else {
+                                console.log("user doesn't have a device token yet");
+                            }
+                        });
+                } else {
+                    console.log('Permission Denied');
+                }
+            });
+    }
 
 
 
@@ -48,7 +83,7 @@ const MediatorDashboardScreen = ({ navigation }) => {
         // setLoading(true)
         await firestore()
             .collection('Events')
-            .orderBy('timeStamp' , 'desc')
+            .orderBy('timeStamp', 'desc')
             .onSnapshot(querySnapshot => {
                 // console.log('==>' , querySnapshot.data());
                 const data = [];
@@ -71,8 +106,8 @@ const MediatorDashboardScreen = ({ navigation }) => {
         try {
             setLoading(true)
             await firestore()
-            .collection('Foods')
-            .orderBy('timeStamp' , 'desc')
+                .collection('Foods')
+                .orderBy('timeStamp', 'desc')
                 .onSnapshot(querySnapshot => {
                     const data = [];
                     querySnapshot.forEach((documentSnapshot) => {
@@ -91,11 +126,33 @@ const MediatorDashboardScreen = ({ navigation }) => {
         }
     }
 
+    const GetPaymentCards = () => {
+        // console.log(currentuser.userDetails.uid);
+        // return
+        const useRef = firestore().collection('PaymentCards')
+            .doc(currentuser?.userDetails?.uid)
+            .onSnapshot(documentSnapshot => {
+                if (documentSnapshot.exists) {
+                    const CardDetails = documentSnapshot.data()?.PaymentCardDetails;
+                    if (CardDetails?.length > 0) {
+                        dispatch(PaymentCards(CardDetails));
+                        // const SingleCard = PaymentCardDetails.find(j => j?.paymentMethod === Data?.paymentMethod);
+                        console.log('==> newpaymentcard', CardDetails);
+                    }
+                    else {
+                        console.log('text');
+                    }
+                }
+            })
+    }
+
 
 
     useEffect(() => {
+        GetFcmToken();
         FetchEvents();
         fectchMenu();
+        GetPaymentCards();
     }, [])
 
     return (
@@ -126,9 +183,9 @@ const MediatorDashboardScreen = ({ navigation }) => {
                                         flexDirection: 'row',
                                         // backgroundColor:COLORS.main,
                                         flexWrap: 'wrap',
-                                        alignSelf:'center',
+                                        alignSelf: 'center',
                                         justifyContent: "space-between",
-                                        width: width/1.1,
+                                        width: width / 1.1,
                                         marginBottom: 50
                                     }}>
                                         {foods?.map((item, index) => (
@@ -149,47 +206,47 @@ const MediatorDashboardScreen = ({ navigation }) => {
                                                     <Image source={{ uri: item.image1 }} resizeMode='cover' style={{
                                                         width: '100%',
                                                         height: 120,
-                                                        borderRadius:10,
-                                                       elevation:9,
+                                                        borderRadius: 10,
+                                                        elevation: 9,
                                                     }} />
                                                 </TouchableOpacity>
                                                 <View style={{
                                                     width: '100%',
                                                     // backgroundColor:COLORS.main,
                                                     paddingLeft: 10,
-                                                    height:30,
+                                                    height: 30,
                                                     // backgroundColor:COLORS.main,
-                                                    justifyContent:'center'
+                                                    justifyContent: 'center'
                                                 }}>
                                                     <Text style={{
                                                         color: COLORS.black,
                                                         fontSize: 16,
-                                                        fontWeight:'bold'
+                                                        fontWeight: 'bold'
                                                     }}>{item.name}</Text>
                                                 </View>
                                                 <View style={{
                                                     width: '100%',
                                                     flexDirection: 'row',
                                                     marginBottom: 3,
-                                                    marginTop:10,
+                                                    marginTop: 10,
                                                     paddingHorizontal: 10,
-                                                    height:30,
-                                                    alignItems:'center',
-                                                    justifyContent:'center',
+                                                    height: 30,
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
                                                 }}>
                                                     <View style={{
                                                         width: '50%',
                                                         // backgroundColor: COLORS.gray
                                                     }}>
-                                                        <Text style={{ fontSize:14, color: COLORS.black, fontWeight: 'bold' }}>${item.PricePerItem}<Text style={{
-                                                            color:COLORS.gray,
-                                                            fontSize:10,
+                                                        <Text style={{ fontSize: 14, color: COLORS.black, fontWeight: 'bold' }}>${item.PricePerItem}<Text style={{
+                                                            color: COLORS.gray,
+                                                            fontSize: 10,
                                                         }}>.00</Text></Text>
                                                     </View>
                                                     <TouchableOpacity
                                                         onPress={() => navigation.navigate('MediatorEditFoodScreen', { details: item })} style={{
                                                             // height: '80%',
-                                                            width:'50%',
+                                                            width: '50%',
                                                             paddingHorizontal: 10,
                                                             backgroundColor: COLORS.main,
                                                             alignItems: 'center',
@@ -228,15 +285,15 @@ const MediatorDashboardScreen = ({ navigation }) => {
                                 // paddingTop: 20,
                             }}>
                                 <Text style={{
-                                    fontSize: 20,
+                                    fontSize: 16,
                                     fontWeight: 'bold',
                                     color: COLORS.black,
                                 }}>Added Events</Text>
                             </View>
                             {allEvents?.length > 0 ?
                                 <View style={{
-                                    marginTop:20,
-                                    marginBottom:50
+                                    marginTop: 20,
+                                    marginBottom: 50
                                 }}>
                                     {allEvents?.map((item, index) => (
                                         <TouchableOpacity key={index}
@@ -247,9 +304,9 @@ const MediatorDashboardScreen = ({ navigation }) => {
                                                 width: width / 1.1,
                                                 backgroundColor: COLORS.white,
                                                 elevation: 5,
-                                                alignSelf:'center',
+                                                alignSelf: 'center',
                                                 // borderColor: COLORS.light,
-                                                borderRadius: 20,
+                                                borderRadius: 10,
                                                 // borderWidth: 1,
                                                 // marginHorizontal: 20,
                                                 marginBottom: 20,
@@ -259,7 +316,8 @@ const MediatorDashboardScreen = ({ navigation }) => {
                                                     style={{
                                                         width: '100%',
                                                         height: 200,
-                                                        borderRadius: 10,
+                                                        borderTopRightRadius: 10,
+                                                        borderTopLeftRadius: 10,
                                                     }} />
                                             </View>
                                             <View style={{
@@ -269,13 +327,13 @@ const MediatorDashboardScreen = ({ navigation }) => {
                                             }}>
                                                 <View>
                                                     <Text style={{
-                                                        fontSize: 16,
+                                                        fontSize: 13,
                                                         color: COLORS.black,
                                                     }}>{item?.Title}</Text>
                                                 </View>
                                                 <View>
                                                     <Text style={{
-                                                        fontSize: 16,
+                                                        fontSize: 13,
                                                         color: COLORS.black,
                                                         fontWeight: 'bold'
                                                     }}>${item?.totalTicketPrice}</Text>
@@ -289,38 +347,40 @@ const MediatorDashboardScreen = ({ navigation }) => {
                                             }}>
                                                 <View style={{
                                                     flexDirection: 'row',
-                                                    width:'75%'
+                                                    width: width / 1.6,
+                                                    alignItems: 'center',
+                                                    // backgroundColor: COLORS.main
                                                 }}>
                                                     <View style={{
-                                                        marginRight: 10,
+                                                        marginRight: 5,
                                                     }}>
-                                                        <Image source={require('../../../assets/location.png')} style={{
-                                                            borderTopRightRadius: 20,
-                                                            borderTopLeftRadius: 20,
+                                                        <Image source={require('../../../assets/location.png')} resizeMode='contain' style={{
+                                                            width: 15,
+                                                            height: 15
                                                         }} />
                                                     </View>
                                                     <View >
                                                         <Text style={{
                                                             color: COLORS.black,
-                                                            fontSize: 12
-                                                        }}>{item?.location}</Text>
+                                                            fontSize: 10
+                                                        }}>{item?.location ? item?.location : 'Loaction not confirmed'}</Text>
                                                     </View>
                                                 </View>
                                                 <View style={{
                                                     alignItems: 'center',
-                                                    justifyContent: 'center'
+                                                    justifyContent: 'center',
                                                 }}>
                                                     <TouchableOpacity
                                                         onPress={() => navigation.navigate('MediatorEditEventScreen', { details: item })}
                                                         style={{
                                                             padding: 5,
-                                                            paddingHorizontal: 10,
+                                                            paddingHorizontal: 15,
                                                             backgroundColor: COLORS.main,
                                                             alignItems: 'center',
                                                             justifyContent: 'center',
-                                                            borderRadius: 20,
+                                                            borderRadius: 5,
                                                         }}>
-                                                        <Text style={{ fontSize: 12, }}>Detail</Text>
+                                                        <Text style={{ fontSize: 12, color: COLORS.black }}>Detail</Text>
                                                     </TouchableOpacity>
                                                 </View>
                                             </View>
